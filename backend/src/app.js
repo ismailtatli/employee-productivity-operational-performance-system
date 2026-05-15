@@ -6,6 +6,7 @@ const authRoutes = require("./routes/authRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
 const departmentRoutes = require("./routes/departmentRoutes");
 const productionRecordRoutes = require("./routes/productionRecordRoutes");
+const reportRoutes = require("./routes/reportRoutes");
 
 
 dotenv.config();
@@ -27,6 +28,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/employees", employeeRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/production-records", productionRecordRoutes);
+app.use("/api/reports", reportRoutes);
 
 app.use((req, res) => {
   res.status(404).json({
