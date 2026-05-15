@@ -86,12 +86,12 @@ function renderLogin() {
             <span>Authorized Factory Management Portal</span>
           </div>
 
-          <h1>TatLee Factory</h1>
-          <p>
-            Employee Productivity and Operational Performance Management System
-            helps production managers track employees, departments, production
-            records, operational KPIs, continuity, and performance-based recommendations.
-          </p>
+          <h1>Operational performance starts with measurable work.</h1>
+<p>
+  TatLee Factory uses this system to manage employees, departments,
+  production records, quality indicators, continuity scores and
+  performance-based recommendations through a secure internal dashboard.
+</p>
 
           <div class="login-highlights">
             <div class="highlight-card">
@@ -265,7 +265,12 @@ function renderTopbar(title, subtitle) {
         <h2>${title}</h2>
         <p>${subtitle}</p>
       </div>
-      <span class="role-pill">${state.user.role}</span>
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span class="role-pill">${state.user.role}</span>
+        <span class="role-pill" style="background:#f1f5f9; color:#334155; border-color:#e2e8f0;">
+          TatLee Factory
+        </span>
+      </div>
     </div>
   `;
 }
