@@ -252,7 +252,7 @@ function updateActiveNav() {
 
 function renderCurrentView() {
   if (state.currentView === "dashboard") renderDashboard();
-  if (state.currentView === "employees") renderPlaceholder("Employees", "Employee management screen will be connected in the next step.");
+  if (state.currentView === "employees") renderEmployees();
   if (state.currentView === "departments") renderPlaceholder("Departments", "Department management screen will be connected in the next step.");
   if (state.currentView === "production") renderPlaceholder("Production Records", "Production records and performance analysis screen will be connected in the next step.");
   if (state.currentView === "reports") renderPlaceholder("Reports", "Detailed operational reports will be connected in the next step.");
@@ -416,5 +416,359 @@ function renderPlaceholder(title, text) {
     </div>
   `;
 }
+function canManageEmployees() {
+  return ["Admin", "Manager"].includes(state.user.role);
+}
 
+function canDeleteEmployees() {
+  return state.user.role === "Admin";
+}
+
+async function renderEmployees() {
+  const view = document.getElementById("view");
+
+  view.innerHTML = `
+    ${renderTopbar(
+      "Employees",
+      "Manage TatLee Factory employees, department assignments and employment status."
+    )}
+
+    <div id="employeeMessage" class="message"></div>
+
+    ${
+      canManageEmployees()
+        ? renderEmployeeForm()
+        : `<div class="panel"><p class="loading">You have view-only access for employee records.</p></div>`
+    }
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Employee Directory</h3>
+      </div>
+
+      <div class="toolbar">
+        <input class="form-control" id="employeeSearch" placeholder="Search by name, code, email or position..." />
+        <select class="form-control" id="employeeDepartmentFilter">
+          <option value="">All departments</option>
+        </select>
+        <select class="form-control" id="employeeStatusFilter">
+          <option value="">All statuses</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+        <button class="secondary-btn" id="refreshEmployeesBtn">Refresh</button>
+      </div>
+
+      <div id="employeesTable" class="loading">Loading employees...</div>
+    </div>
+  `;
+
+  await loadDepartmentOptions();
+  await loadEmployees();
+
+  document.getElementById("employeeSearch").addEventListener("input", () => loadEmployees());
+  document.getElementById("employeeDepartmentFilter").addEventListener("change", () => loadEmployees());
+  document.getElementById("employeeStatusFilter").addEventListener("change", () => loadEmployees());
+  document.getElementById("refreshEmployeesBtn").addEventListener("click", () => loadEmployees());
+
+  const form = document.getElementById("employeeForm");
+  if (form) {
+    form.addEventListener("submit", handleEmployeeSubmit);
+    document.getElementById("employeeCancelBtn").addEventListener("click", resetEmployeeForm);
+  }
+}
+
+function renderEmployeeForm() {
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <h3 id="employeeFormTitle">Add Employee</h3>
+      </div>
+
+      <form id="employeeForm">
+        <input type="hidden" id="employeeId" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input class="form-control" id="employeeFullName" placeholder="Example: Ali Vural" />
+          </div>
+
+          <div class="form-group">
+            <label>Employee Code</label>
+            <input class="form-control" id="employeeCode" placeholder="Example: EMP-100" />
+          </div>
+
+          <div class="form-group">
+            <label>Email</label>
+            <input class="form-control" id="employeeEmail" placeholder="Example: ali.vural@tatleefactory.com" />
+          </div>
+
+          <div class="form-group">
+            <label>Position</label>
+            <input class="form-control" id="employeePosition" placeholder="Example: Production Operator" />
+          </div>
+
+          <div class="form-group">
+            <label>Department</label>
+            <select class="form-control" id="employeeDepartmentId"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Hire Date</label>
+            <input class="form-control" id="employeeHireDate" type="date" />
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" id="employeeStatus">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary-btn" style="width:auto;" type="submit">Save Employee</button>
+          <button class="secondary-btn" type="button" id="employeeCancelBtn">Clear</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function loadDepartmentOptions() {
+  const response = await apiRequest("/departments");
+  const departments = response.data;
+
+  const filterSelect = document.getElementById("employeeDepartmentFilter");
+  const formSelect = document.getElementById("employeeDepartmentId");
+
+  if (filterSelect) {
+    filterSelect.innerHTML =
+      `<option value="">All departments</option>` +
+      departments.map((department) => `
+        <option value="${department.id}">${department.departmentName}</option>
+      `).join("");
+  }
+
+  if (formSelect) {
+    formSelect.innerHTML = departments.map((department) => `
+      <option value="${department.id}">${department.departmentName}</option>
+    `).join("");
+  }
+}
+
+async function loadEmployees() {
+  const table = document.getElementById("employeesTable");
+  const searchValue = document.getElementById("employeeSearch")?.value.trim() || "";
+  const departmentValue = document.getElementById("employeeDepartmentFilter")?.value || "";
+  const statusValue = document.getElementById("employeeStatusFilter")?.value || "";
+
+  table.innerHTML = `<div class="loading">Loading employees...</div>`;
+
+  try {
+    let employees;
+
+    if (searchValue) {
+      const response = await apiRequest(`/employees/search?query=${encodeURIComponent(searchValue)}`);
+      employees = response.data;
+    } else if (departmentValue) {
+      const response = await apiRequest(`/employees/department/${departmentValue}`);
+      employees = response.data;
+    } else {
+      const response = await apiRequest("/employees");
+      employees = response.data;
+    }
+
+    if (statusValue) {
+      employees = employees.filter((employee) => employee.status === statusValue);
+    }
+
+    table.innerHTML = renderEmployeesTable(employees);
+    bindEmployeeActions(employees);
+  } catch (error) {
+    table.innerHTML = `<div class="message error" style="display:block;">${error.message}</div>`;
+  }
+}
+
+function renderEmployeesTable(employees) {
+  if (!employees.length) {
+    return `<p class="loading">No employees found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Full Name</th>
+            <th>Department</th>
+            <th>Position</th>
+            <th>Email</th>
+            <th>Status</th>
+            <th>Hire Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${employees.map((employee) => `
+            <tr>
+              <td><strong>${employee.employeeCode}</strong></td>
+              <td>${employee.fullName}</td>
+              <td>${employee.departmentName || "-"}</td>
+              <td>${employee.position}</td>
+              <td>${employee.email}</td>
+              <td>
+                <span class="badge ${employee.status === "Active" ? "badge-success" : "badge-warning"}">
+                  ${employee.status}
+                </span>
+              </td>
+              <td>${employee.hireDate}</td>
+              <td>
+                <div class="actions">
+                  ${
+                    canManageEmployees()
+                      ? `<button class="edit-btn" data-edit-employee="${employee.id}">Edit</button>`
+                      : ""
+                  }
+                  ${
+                    canDeleteEmployees()
+                      ? `<button class="danger-btn" data-delete-employee="${employee.id}">Delete</button>`
+                      : ""
+                  }
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindEmployeeActions(employees) {
+  document.querySelectorAll("[data-edit-employee]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const employee = employees.find((item) => Number(item.id) === Number(button.dataset.editEmployee));
+      fillEmployeeForm(employee);
+    });
+  });
+
+  document.querySelectorAll("[data-delete-employee]").forEach((button) => {
+    button.addEventListener("click", () => deleteEmployee(button.dataset.deleteEmployee));
+  });
+}
+
+function fillEmployeeForm(employee) {
+  document.getElementById("employeeFormTitle").textContent = "Edit Employee";
+  document.getElementById("employeeId").value = employee.id;
+  document.getElementById("employeeFullName").value = employee.fullName;
+  document.getElementById("employeeCode").value = employee.employeeCode;
+  document.getElementById("employeeEmail").value = employee.email;
+  document.getElementById("employeePosition").value = employee.position;
+  document.getElementById("employeeDepartmentId").value = employee.departmentId;
+  document.getElementById("employeeHireDate").value = employee.hireDate;
+  document.getElementById("employeeStatus").value = employee.status;
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetEmployeeForm() {
+  const form = document.getElementById("employeeForm");
+
+  if (!form) return;
+
+  form.reset();
+  document.getElementById("employeeId").value = "";
+  document.getElementById("employeeFormTitle").textContent = "Add Employee";
+  document.getElementById("employeeStatus").value = "Active";
+}
+
+function getEmployeeFormData() {
+  return {
+    fullName: document.getElementById("employeeFullName").value.trim(),
+    employeeCode: document.getElementById("employeeCode").value.trim(),
+    email: document.getElementById("employeeEmail").value.trim(),
+    position: document.getElementById("employeePosition").value.trim(),
+    departmentId: Number(document.getElementById("employeeDepartmentId").value),
+    hireDate: document.getElementById("employeeHireDate").value,
+    status: document.getElementById("employeeStatus").value
+  };
+}
+
+function validateEmployeeForm(data) {
+  if (!data.fullName) return "Full name is required.";
+  if (!data.employeeCode) return "Employee code is required.";
+  if (!data.email || !data.email.includes("@")) return "Valid email is required.";
+  if (!data.position) return "Position is required.";
+  if (!data.departmentId) return "Department is required.";
+  if (!data.hireDate) return "Hire date is required.";
+  return null;
+}
+
+async function handleEmployeeSubmit(event) {
+  event.preventDefault();
+
+  const message = document.getElementById("employeeMessage");
+  const employeeId = document.getElementById("employeeId").value;
+  const formData = getEmployeeFormData();
+  const validationError = validateEmployeeForm(formData);
+
+  message.style.display = "none";
+
+  if (validationError) {
+    showMessage(message, validationError, "error");
+    return;
+  }
+
+  try {
+    if (employeeId) {
+      await apiRequest(`/employees/${employeeId}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Employee updated successfully.", "success");
+    } else {
+      await apiRequest("/employees", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Employee created successfully.", "success");
+    }
+
+    resetEmployeeForm();
+    await loadEmployees();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+async function deleteEmployee(id) {
+  const confirmed = confirm("Are you sure you want to delete this employee?");
+
+  if (!confirmed) return;
+
+  const message = document.getElementById("employeeMessage");
+
+  try {
+    await apiRequest(`/employees/${id}`, {
+      method: "DELETE"
+    });
+
+    showMessage(message, "Employee deleted successfully.", "success");
+    await loadEmployees();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+function showMessage(element, text, type) {
+  element.textContent = text;
+  element.className = `message ${type}`;
+  element.style.display = "block";
+}
 renderApp();
