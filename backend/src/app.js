@@ -3,6 +3,8 @@ const cors = require("cors");
 const dotenv = require("dotenv");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./swagger");
+const productRoutes = require("./routes/productRoutes");
+const machineRoutes = require("./routes/machineRoutes");
 
 const authRoutes = require("./routes/authRoutes");
 const employeeRoutes = require("./routes/employeeRoutes");
@@ -32,6 +34,8 @@ app.use("/api/employees", employeeRoutes);
 app.use("/api/departments", departmentRoutes);
 app.use("/api/production-records", productionRecordRoutes);
 app.use("/api/reports", reportRoutes);
+app.use("/api/products", productRoutes);
+app.use("/api/machines", machineRoutes);
 
 app.use((req, res) => {
   res.status(404).json({

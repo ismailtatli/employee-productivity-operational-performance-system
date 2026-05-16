@@ -40,6 +40,29 @@ async function initializeDatabase() {
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
+        CREATE TABLE IF NOT EXISTS products (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      productCode TEXT NOT NULL UNIQUE,
+      productName TEXT NOT NULL,
+      category TEXT NOT NULL,
+      standardUnit TEXT NOT NULL,
+      targetPerShift INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS production_machines (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      machineCode TEXT NOT NULL UNIQUE,
+      machineName TEXT NOT NULL,
+      departmentId INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'Active' CHECK(status IN ('Active', 'Maintenance', 'Inactive')),
+      capacityPerShift INTEGER NOT NULL,
+      description TEXT,
+      createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (departmentId) REFERENCES departments(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS employees (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       fullName TEXT NOT NULL,
@@ -113,6 +136,73 @@ async function seedInitialData(database) {
       await database.run(
         "INSERT INTO departments (departmentName, managerName, description) VALUES (?, ?, ?)",
         department
+      );
+    }
+  }
+
+    const productCount = await database.get("SELECT COUNT(*) AS count FROM products");
+
+  if (productCount.count === 0) {
+    const products = [
+      ["PRD-001", "Chocolate Wafer Box", "Food Packaging", "box", 500, "Active"],
+      ["PRD-002", "Protein Bar Pack", "Food Packaging", "pack", 650, "Active"],
+      ["PRD-003", "Biscuit Family Pack", "Food Packaging", "pack", 700, "Active"],
+      ["PRD-004", "Mini Cake Box", "Food Packaging", "box", 480, "Active"],
+      ["PRD-005", "Cereal Bar Carton", "Food Packaging", "carton", 420, "Active"],
+      ["PRD-006", "Tea Bag Retail Pack", "Beverage Packaging", "pack", 600, "Active"],
+      ["PRD-007", "Coffee Sachet Box", "Beverage Packaging", "box", 550, "Active"],
+      ["PRD-008", "Fruit Juice Bottle", "Beverage", "bottle", 800, "Active"],
+      ["PRD-009", "Mineral Water Bottle", "Beverage", "bottle", 900, "Active"],
+      ["PRD-010", "Energy Drink Can", "Beverage", "can", 760, "Active"],
+      ["PRD-011", "Detergent Bottle", "Cleaning Product", "bottle", 450, "Active"],
+      ["PRD-012", "Liquid Soap Bottle", "Personal Care", "bottle", 520, "Active"],
+      ["PRD-013", "Shampoo Bottle", "Personal Care", "bottle", 480, "Active"],
+      ["PRD-014", "Paper Towel Pack", "Household", "pack", 700, "Active"],
+      ["PRD-015", "Napkin Pack", "Household", "pack", 850, "Active"],
+      ["PRD-016", "Plastic Container Set", "Household", "set", 360, "Active"],
+      ["PRD-017", "Lunch Box", "Household", "unit", 300, "Active"],
+      ["PRD-018", "Frozen Pizza Box", "Frozen Food", "box", 420, "Active"],
+      ["PRD-019", "Frozen Vegetable Pack", "Frozen Food", "pack", 500, "Active"],
+      ["PRD-020", "Ice Cream Cup", "Frozen Food", "cup", 650, "Active"],
+      ["PRD-021", "Snack Chips Pack", "Snack", "pack", 780, "Active"],
+      ["PRD-022", "Cracker Pack", "Snack", "pack", 720, "Active"],
+      ["PRD-023", "Candy Bag", "Snack", "bag", 680, "Active"],
+      ["PRD-024", "Chocolate Tablet", "Snack", "unit", 750, "Active"],
+      ["PRD-025", "Gum Multipack", "Snack", "pack", 900, "Active"]
+    ];
+
+    for (const product of products) {
+      await database.run(
+        `INSERT INTO products
+        (productCode, productName, category, standardUnit, targetPerShift, status)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+        product
+      );
+    }
+  }
+
+  const machineCount = await database.get("SELECT COUNT(*) AS count FROM production_machines");
+
+  if (machineCount.count === 0) {
+    const machines = [
+      ["MCH-001", "Filling Line A", 1, "Active", 1200, "High-volume filling and primary production line"],
+      ["MCH-002", "Filling Line B", 1, "Active", 1100, "Secondary filling and production line"],
+      ["MCH-003", "Packaging Unit A", 3, "Active", 900, "Automatic packaging machine"],
+      ["MCH-004", "Packaging Unit B", 3, "Active", 850, "Backup packaging machine"],
+      ["MCH-005", "Quality Scanner 1", 2, "Active", 700, "Automated quality inspection scanner"],
+      ["MCH-006", "Quality Scanner 2", 2, "Maintenance", 650, "Secondary inspection scanner under maintenance"],
+      ["MCH-007", "Labeling Machine A", 3, "Active", 1000, "Product labeling and barcode printing"],
+      ["MCH-008", "Sorting Conveyor", 4, "Active", 950, "Sorting and transfer conveyor"],
+      ["MCH-009", "Sealing Unit", 1, "Active", 780, "Product sealing and closing unit"],
+      ["MCH-010", "Palletizing Robot", 4, "Active", 600, "Automated palletizing and shipment preparation"]
+    ];
+
+    for (const machine of machines) {
+      await database.run(
+        `INSERT INTO production_machines
+        (machineCode, machineName, departmentId, status, capacityPerShift, description)
+        VALUES (?, ?, ?, ?, ?, ?)`,
+        machine
       );
     }
   }
