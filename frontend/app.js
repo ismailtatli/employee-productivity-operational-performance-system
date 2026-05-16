@@ -254,7 +254,7 @@ function renderCurrentView() {
   if (state.currentView === "dashboard") renderDashboard();
   if (state.currentView === "employees") renderEmployees();
   if (state.currentView === "departments") renderDepartments();
-  if (state.currentView === "production") renderPlaceholder("Production Records", "Production records and performance analysis screen will be connected in the next step.");
+  if (state.currentView === "production") renderProductionRecords();
   if (state.currentView === "reports") renderPlaceholder("Reports", "Detailed operational reports will be connected in the next step.");
 }
 
@@ -1043,6 +1043,436 @@ async function deleteDepartment(id) {
     await loadDepartments();
   } catch (error) {
     showMessage(message, error.message, "error");
+  }
+}
+function canManageProductionRecords() {
+  return ["Admin", "Manager", "Production"].includes(state.user.role);
+}
+
+function canDeleteProductionRecords() {
+  return state.user.role === "Admin";
+}
+
+async function renderProductionRecords() {
+  const view = document.getElementById("view");
+
+  view.innerHTML = `
+    ${renderTopbar(
+      "Production Records",
+      "Track production output, quality, continuity and employee performance recommendations."
+    )}
+
+    <div id="productionMessage" class="message"></div>
+
+    ${
+      canManageProductionRecords()
+        ? renderProductionRecordForm()
+        : `<div class="panel"><p class="loading">You have view-only access for production records.</p></div>`
+    }
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Production Performance Records</h3>
+      </div>
+
+      <div class="toolbar">
+        <select class="form-control" id="productionEmployeeFilter">
+          <option value="">All employees</option>
+        </select>
+        <select class="form-control" id="productionGradeFilter">
+          <option value="">All grades</option>
+          <option value="Excellent">Excellent</option>
+          <option value="Good">Good</option>
+          <option value="Needs Improvement">Needs Improvement</option>
+          <option value="Poor">Poor</option>
+        </select>
+        <select class="form-control" id="productionRecommendationFilter">
+          <option value="">All recommendations</option>
+          <option value="Promotion Candidate">Promotion Candidate</option>
+          <option value="Stable Performer">Stable Performer</option>
+          <option value="Monitor Closely">Monitor Closely</option>
+          <option value="Performance Improvement Plan Required">Improvement Plan Required</option>
+          <option value="HR Review Required">HR Review Required</option>
+        </select>
+        <button class="secondary-btn" id="refreshProductionBtn">Refresh</button>
+      </div>
+
+      <div id="productionRecordsTable" class="loading">Loading production records...</div>
+    </div>
+  `;
+
+  await loadProductionEmployeeOptions();
+  await loadProductionRecords();
+
+  document.getElementById("productionEmployeeFilter").addEventListener("change", () => loadProductionRecords());
+  document.getElementById("productionGradeFilter").addEventListener("change", () => loadProductionRecords());
+  document.getElementById("productionRecommendationFilter").addEventListener("change", () => loadProductionRecords());
+  document.getElementById("refreshProductionBtn").addEventListener("click", () => loadProductionRecords());
+
+  const form = document.getElementById("productionRecordForm");
+
+  if (form) {
+    form.addEventListener("submit", handleProductionRecordSubmit);
+    document.getElementById("productionCancelBtn").addEventListener("click", resetProductionRecordForm);
+  }
+}
+
+function renderProductionRecordForm() {
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <h3 id="productionFormTitle">Add Production Record</h3>
+      </div>
+
+      <form id="productionRecordForm">
+        <input type="hidden" id="productionRecordId" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Employee</label>
+            <select class="form-control" id="productionEmployeeId"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Record Date</label>
+            <input class="form-control" id="productionRecordDate" type="date" />
+          </div>
+
+          <div class="form-group">
+            <label>Period</label>
+            <input class="form-control" id="productionPeriod" placeholder="Example: 2026-Q2" />
+          </div>
+
+          <div class="form-group">
+            <label>Product Type</label>
+            <input class="form-control" id="productionProductType" placeholder="Example: Production Line A" />
+          </div>
+
+          <div class="form-group">
+            <label>Target Quantity</label>
+            <input class="form-control" id="productionTargetQuantity" type="number" min="1" placeholder="Example: 500" />
+          </div>
+
+          <div class="form-group">
+            <label>Actual Quantity</label>
+            <input class="form-control" id="productionActualQuantity" type="number" min="1" placeholder="Example: 465" />
+          </div>
+
+          <div class="form-group">
+            <label>Defective Quantity</label>
+            <input class="form-control" id="productionDefectiveQuantity" type="number" min="0" placeholder="Example: 12" />
+          </div>
+
+          <div class="form-group">
+            <label>On-Time Completion Score</label>
+            <input class="form-control" id="productionOnTimeScore" type="number" min="0" max="100" placeholder="0 - 100" />
+          </div>
+
+          <div class="form-group">
+            <label>Planned Work Days</label>
+            <input class="form-control" id="productionPlannedDays" type="number" min="1" placeholder="Example: 22" />
+          </div>
+
+          <div class="form-group">
+            <label>Absent Days</label>
+            <input class="form-control" id="productionAbsentDays" type="number" min="0" placeholder="Example: 1" />
+          </div>
+
+          <div class="form-group">
+            <label>Late Days</label>
+            <input class="form-control" id="productionLateDays" type="number" min="0" placeholder="Example: 2" />
+          </div>
+
+          <div class="form-group full">
+            <label>Notes</label>
+            <textarea class="form-control" id="productionNotes" rows="3" placeholder="Optional operational note..."></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary-btn" style="width:auto;" type="submit">Save Production Record</button>
+          <button class="secondary-btn" type="button" id="productionCancelBtn">Clear</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function loadProductionEmployeeOptions() {
+  const response = await apiRequest("/employees");
+  const employees = response.data;
+
+  const filterSelect = document.getElementById("productionEmployeeFilter");
+  const formSelect = document.getElementById("productionEmployeeId");
+
+  if (filterSelect) {
+    filterSelect.innerHTML =
+      `<option value="">All employees</option>` +
+      employees.map((employee) => `
+        <option value="${employee.id}">${employee.employeeCode} - ${employee.fullName}</option>
+      `).join("");
+  }
+
+  if (formSelect) {
+    formSelect.innerHTML = employees.map((employee) => `
+      <option value="${employee.id}">${employee.employeeCode} - ${employee.fullName}</option>
+    `).join("");
+  }
+}
+
+async function loadProductionRecords() {
+  const table = document.getElementById("productionRecordsTable");
+  const employeeFilter = document.getElementById("productionEmployeeFilter")?.value || "";
+  const gradeFilter = document.getElementById("productionGradeFilter")?.value || "";
+  const recommendationFilter = document.getElementById("productionRecommendationFilter")?.value || "";
+
+  table.innerHTML = `<div class="loading">Loading production records...</div>`;
+
+  try {
+    let records;
+
+    if (employeeFilter) {
+      const response = await apiRequest(`/production-records/employee/${employeeFilter}`);
+      records = response.data;
+    } else {
+      const response = await apiRequest("/production-records");
+      records = response.data;
+    }
+
+    if (gradeFilter) {
+      records = records.filter((record) => record.performanceGrade === gradeFilter);
+    }
+
+    if (recommendationFilter) {
+      records = records.filter((record) => record.recommendation === recommendationFilter);
+    }
+
+    table.innerHTML = renderProductionRecordsTable(records);
+    bindProductionRecordActions(records);
+  } catch (error) {
+    table.innerHTML = `<div class="message error" style="display:block;">${error.message}</div>`;
+  }
+}
+
+function renderProductionRecordsTable(records) {
+  if (!records.length) {
+    return `<p class="loading">No production records found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Product Type</th>
+            <th>Target / Actual</th>
+            <th>Defective</th>
+            <th>Quality</th>
+            <th>Continuity</th>
+            <th>Score</th>
+            <th>Grade</th>
+            <th>Bonus</th>
+            <th>Recommendation</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map((record) => `
+            <tr>
+              <td>
+                <strong>${record.fullName}</strong><br />
+                <span class="loading">${record.departmentName || "-"}</span>
+              </td>
+              <td>
+                ${record.productType}<br />
+                <span class="loading">${record.recordDate} · ${record.period}</span>
+              </td>
+              <td>${record.targetQuantity} / <strong>${record.actualQuantity}</strong></td>
+              <td>${record.defectiveQuantity}</td>
+              <td>${record.qualityScore}</td>
+              <td>${record.continuityScore}</td>
+              <td><strong>${record.overallPerformanceScore}</strong></td>
+              <td>
+                <span class="badge ${getBadgeClass(record.performanceGrade)}">
+                  ${record.performanceGrade}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${record.bonusEligible ? "badge-success" : "badge-warning"}">
+                  ${record.bonusEligible ? "Eligible" : "Not Eligible"}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${getBadgeClass(record.recommendation)}">
+                  ${record.recommendation}
+                </span>
+              </td>
+              <td>
+                <div class="actions">
+                  ${
+                    canManageProductionRecords()
+                      ? `<button class="edit-btn" data-edit-production="${record.id}">Edit</button>`
+                      : ""
+                  }
+                  ${
+                    canDeleteProductionRecords()
+                      ? `<button class="danger-btn" data-delete-production="${record.id}">Delete</button>`
+                      : ""
+                  }
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="11" style="background:#f8fafc;">
+                <strong>Employee Report:</strong> ${record.reportSummary}
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindProductionRecordActions(records) {
+  document.querySelectorAll("[data-edit-production]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const record = records.find((item) => Number(item.id) === Number(button.dataset.editProduction));
+      fillProductionRecordForm(record);
+    });
+  });
+
+  document.querySelectorAll("[data-delete-production]").forEach((button) => {
+    button.addEventListener("click", () => deleteProductionRecord(button.dataset.deleteProduction));
+  });
+}
+
+function fillProductionRecordForm(record) {
+  document.getElementById("productionFormTitle").textContent = "Edit Production Record";
+  document.getElementById("productionRecordId").value = record.id;
+  document.getElementById("productionEmployeeId").value = record.employeeId;
+  document.getElementById("productionRecordDate").value = record.recordDate;
+  document.getElementById("productionPeriod").value = record.period;
+  document.getElementById("productionProductType").value = record.productType;
+  document.getElementById("productionTargetQuantity").value = record.targetQuantity;
+  document.getElementById("productionActualQuantity").value = record.actualQuantity;
+  document.getElementById("productionDefectiveQuantity").value = record.defectiveQuantity;
+  document.getElementById("productionOnTimeScore").value = record.onTimeCompletionScore;
+  document.getElementById("productionPlannedDays").value = record.plannedWorkDays;
+  document.getElementById("productionAbsentDays").value = record.absentDays;
+  document.getElementById("productionLateDays").value = record.lateDays;
+  document.getElementById("productionNotes").value = record.notes || "";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetProductionRecordForm() {
+  const form = document.getElementById("productionRecordForm");
+
+  if (!form) return;
+
+  form.reset();
+  document.getElementById("productionRecordId").value = "";
+  document.getElementById("productionFormTitle").textContent = "Add Production Record";
+}
+
+function getProductionRecordFormData() {
+  return {
+    employeeId: Number(document.getElementById("productionEmployeeId").value),
+    recordDate: document.getElementById("productionRecordDate").value,
+    period: document.getElementById("productionPeriod").value.trim(),
+    productType: document.getElementById("productionProductType").value.trim(),
+    targetQuantity: Number(document.getElementById("productionTargetQuantity").value),
+    actualQuantity: Number(document.getElementById("productionActualQuantity").value),
+    defectiveQuantity: Number(document.getElementById("productionDefectiveQuantity").value),
+    onTimeCompletionScore: Number(document.getElementById("productionOnTimeScore").value),
+    plannedWorkDays: Number(document.getElementById("productionPlannedDays").value),
+    absentDays: Number(document.getElementById("productionAbsentDays").value),
+    lateDays: Number(document.getElementById("productionLateDays").value),
+    notes: document.getElementById("productionNotes").value.trim()
+  };
+}
+
+function validateProductionRecordForm(data) {
+  if (!data.employeeId) return "Employee is required.";
+  if (!data.recordDate) return "Record date is required.";
+  if (!data.period) return "Period is required.";
+  if (!data.productType) return "Product type is required.";
+  if (data.targetQuantity <= 0) return "Target quantity must be greater than zero.";
+  if (data.actualQuantity <= 0) return "Actual quantity must be greater than zero.";
+  if (data.defectiveQuantity < 0) return "Defective quantity cannot be negative.";
+  if (data.defectiveQuantity > data.actualQuantity) return "Defective quantity cannot be greater than actual quantity.";
+  if (data.onTimeCompletionScore < 0 || data.onTimeCompletionScore > 100) return "On-time completion score must be between 0 and 100.";
+  if (data.plannedWorkDays <= 0) return "Planned work days must be greater than zero.";
+  if (data.absentDays < 0) return "Absent days cannot be negative.";
+  if (data.lateDays < 0) return "Late days cannot be negative.";
+  if (data.absentDays > data.plannedWorkDays) return "Absent days cannot be greater than planned work days.";
+  return null;
+}
+
+async function handleProductionRecordSubmit(event) {
+  event.preventDefault();
+
+  const message = document.getElementById("productionMessage");
+  const recordId = document.getElementById("productionRecordId").value;
+  const formData = getProductionRecordFormData();
+  const validationError = validateProductionRecordForm(formData);
+
+  message.style.display = "none";
+
+  if (validationError) {
+    showMessage(message, validationError, "error");
+    return;
+  }
+
+  try {
+    if (recordId) {
+      await apiRequest(`/production-records/${recordId}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Production record updated successfully.", "success");
+    } else {
+      await apiRequest("/production-records", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Production record created successfully.", "success");
+    }
+
+    resetProductionRecordForm();
+    await loadProductionRecords();
+    await renderDashboardIfActive();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+async function deleteProductionRecord(id) {
+  const confirmed = confirm("Are you sure you want to delete this production record?");
+
+  if (!confirmed) return;
+
+  const message = document.getElementById("productionMessage");
+
+  try {
+    await apiRequest(`/production-records/${id}`, {
+      method: "DELETE"
+    });
+
+    showMessage(message, "Production record deleted successfully.", "success");
+    await loadProductionRecords();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+async function renderDashboardIfActive() {
+  if (state.currentView === "dashboard") {
+    await renderDashboard();
   }
 }
 renderApp();
