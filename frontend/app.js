@@ -253,7 +253,7 @@ function updateActiveNav() {
 function renderCurrentView() {
   if (state.currentView === "dashboard") renderDashboard();
   if (state.currentView === "employees") renderEmployees();
-  if (state.currentView === "departments") renderPlaceholder("Departments", "Department management screen will be connected in the next step.");
+  if (state.currentView === "departments") renderDepartments();
   if (state.currentView === "production") renderPlaceholder("Production Records", "Production records and performance analysis screen will be connected in the next step.");
   if (state.currentView === "reports") renderPlaceholder("Reports", "Detailed operational reports will be connected in the next step.");
 }
@@ -770,5 +770,279 @@ function showMessage(element, text, type) {
   element.textContent = text;
   element.className = `message ${type}`;
   element.style.display = "block";
+}
+function canManageDepartments() {
+  return ["Admin", "Manager"].includes(state.user.role);
+}
+
+function canDeleteDepartments() {
+  return state.user.role === "Admin";
+}
+
+async function renderDepartments() {
+  const view = document.getElementById("view");
+
+  view.innerHTML = `
+    ${renderTopbar(
+      "Departments",
+      "Manage TatLee Factory departments, managers and organizational structure."
+    )}
+
+    <div id="departmentMessage" class="message"></div>
+
+    ${
+      canManageDepartments()
+        ? renderDepartmentForm()
+        : `<div class="panel"><p class="loading">You have view-only access for department records.</p></div>`
+    }
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Department Directory</h3>
+      </div>
+
+      <div class="toolbar">
+        <input class="form-control" id="departmentSearch" placeholder="Search by department or manager..." />
+        <button class="secondary-btn" id="refreshDepartmentsBtn">Refresh</button>
+      </div>
+
+      <div id="departmentsTable" class="loading">Loading departments...</div>
+    </div>
+  `;
+
+  await loadDepartments();
+
+  document.getElementById("departmentSearch").addEventListener("input", () => loadDepartments());
+  document.getElementById("refreshDepartmentsBtn").addEventListener("click", () => loadDepartments());
+
+  const form = document.getElementById("departmentForm");
+
+  if (form) {
+    form.addEventListener("submit", handleDepartmentSubmit);
+    document.getElementById("departmentCancelBtn").addEventListener("click", resetDepartmentForm);
+  }
+}
+
+function renderDepartmentForm() {
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <h3 id="departmentFormTitle">Add Department</h3>
+      </div>
+
+      <form id="departmentForm">
+        <input type="hidden" id="departmentId" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Department Name</label>
+            <input class="form-control" id="departmentName" placeholder="Example: Maintenance" />
+          </div>
+
+          <div class="form-group">
+            <label>Manager Name</label>
+            <input class="form-control" id="departmentManagerName" placeholder="Example: Kemal Arı" />
+          </div>
+
+          <div class="form-group full">
+            <label>Description</label>
+            <textarea class="form-control" id="departmentDescription" rows="3" placeholder="Describe the department responsibilities..."></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary-btn" style="width:auto;" type="submit">Save Department</button>
+          <button class="secondary-btn" type="button" id="departmentCancelBtn">Clear</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function loadDepartments() {
+  const table = document.getElementById("departmentsTable");
+  const searchValue = document.getElementById("departmentSearch")?.value.trim().toLowerCase() || "";
+
+  table.innerHTML = `<div class="loading">Loading departments...</div>`;
+
+  try {
+    const response = await apiRequest("/departments");
+    let departments = response.data;
+
+    if (searchValue) {
+      departments = departments.filter((department) => {
+        return (
+          department.departmentName.toLowerCase().includes(searchValue) ||
+          department.managerName.toLowerCase().includes(searchValue) ||
+          (department.description || "").toLowerCase().includes(searchValue)
+        );
+      });
+    }
+
+    table.innerHTML = renderDepartmentsTable(departments);
+    bindDepartmentActions(departments);
+  } catch (error) {
+    table.innerHTML = `<div class="message error" style="display:block;">${error.message}</div>`;
+  }
+}
+
+function renderDepartmentsTable(departments) {
+  if (!departments.length) {
+    return `<p class="loading">No departments found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Department</th>
+            <th>Manager</th>
+            <th>Description</th>
+            <th>Employees</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${departments.map((department) => `
+            <tr>
+              <td><strong>${department.departmentName}</strong></td>
+              <td>${department.managerName}</td>
+              <td>${department.description || "-"}</td>
+              <td>
+                <span class="badge badge-info">${department.employeeCount || 0} Employees</span>
+              </td>
+              <td>
+                <div class="actions">
+                  ${
+                    canManageDepartments()
+                      ? `<button class="edit-btn" data-edit-department="${department.id}">Edit</button>`
+                      : ""
+                  }
+                  ${
+                    canDeleteDepartments()
+                      ? `<button class="danger-btn" data-delete-department="${department.id}">Delete</button>`
+                      : ""
+                  }
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindDepartmentActions(departments) {
+  document.querySelectorAll("[data-edit-department]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const department = departments.find((item) => Number(item.id) === Number(button.dataset.editDepartment));
+      fillDepartmentForm(department);
+    });
+  });
+
+  document.querySelectorAll("[data-delete-department]").forEach((button) => {
+    button.addEventListener("click", () => deleteDepartment(button.dataset.deleteDepartment));
+  });
+}
+
+function fillDepartmentForm(department) {
+  document.getElementById("departmentFormTitle").textContent = "Edit Department";
+  document.getElementById("departmentId").value = department.id;
+  document.getElementById("departmentName").value = department.departmentName;
+  document.getElementById("departmentManagerName").value = department.managerName;
+  document.getElementById("departmentDescription").value = department.description || "";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetDepartmentForm() {
+  const form = document.getElementById("departmentForm");
+
+  if (!form) return;
+
+  form.reset();
+  document.getElementById("departmentId").value = "";
+  document.getElementById("departmentFormTitle").textContent = "Add Department";
+}
+
+function getDepartmentFormData() {
+  return {
+    departmentName: document.getElementById("departmentName").value.trim(),
+    managerName: document.getElementById("departmentManagerName").value.trim(),
+    description: document.getElementById("departmentDescription").value.trim()
+  };
+}
+
+function validateDepartmentForm(data) {
+  if (!data.departmentName) return "Department name is required.";
+  if (data.departmentName.length < 2) return "Department name must be at least 2 characters.";
+  if (!data.managerName) return "Manager name is required.";
+  return null;
+}
+
+async function handleDepartmentSubmit(event) {
+  event.preventDefault();
+
+  const message = document.getElementById("departmentMessage");
+  const departmentId = document.getElementById("departmentId").value;
+  const formData = getDepartmentFormData();
+  const validationError = validateDepartmentForm(formData);
+
+  message.style.display = "none";
+
+  if (validationError) {
+    showMessage(message, validationError, "error");
+    return;
+  }
+
+  try {
+    if (departmentId) {
+      await apiRequest(`/departments/${departmentId}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Department updated successfully.", "success");
+    } else {
+      await apiRequest("/departments", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Department created successfully.", "success");
+    }
+
+    resetDepartmentForm();
+    await loadDepartments();
+
+    if (state.currentView === "employees") {
+      await loadDepartmentOptions();
+    }
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+async function deleteDepartment(id) {
+  const confirmed = confirm(
+    "Are you sure you want to delete this department? Departments with assigned employees cannot be deleted."
+  );
+
+  if (!confirmed) return;
+
+  const message = document.getElementById("departmentMessage");
+
+  try {
+    await apiRequest(`/departments/${id}`, {
+      method: "DELETE"
+    });
+
+    showMessage(message, "Department deleted successfully.", "success");
+    await loadDepartments();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
 }
 renderApp();
