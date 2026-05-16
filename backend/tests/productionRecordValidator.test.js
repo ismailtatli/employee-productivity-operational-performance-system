@@ -3,6 +3,8 @@ const { validateProductionRecordInput } = require("../src/validators/productionR
 describe("Production Record Validator", () => {
   const validRecord = {
     employeeId: 1,
+    productId: 1,
+    machineId: 1,
     recordDate: "2026-05-01",
     period: "2026-Q2",
     productType: "Packaging Unit",
@@ -94,4 +96,24 @@ describe("Production Record Validator", () => {
     expect(result.isValid).toBe(false);
     expect(result.errors).toContain("Absent days cannot be greater than planned work days.");
   });
+
+  test("missing product id should fail validation", () => {
+  const result = validateProductionRecordInput({
+    ...validRecord,
+    productId: 0
+  });
+
+  expect(result.isValid).toBe(false);
+  expect(result.errors).toContain("Valid product is required.");
+});
+
+test("missing machine id should fail validation", () => {
+  const result = validateProductionRecordInput({
+    ...validRecord,
+    machineId: 0
+  });
+
+  expect(result.isValid).toBe(false);
+  expect(result.errors).toContain("Valid production machine is required.");
+});
 });

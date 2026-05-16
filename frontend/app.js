@@ -58,10 +58,7 @@ function getBadgeClass(value) {
     return "badge-success";
   }
 
-  if (
-    value.includes("Monitor") ||
-    value.includes("Needs")
-  ) {
+  if (value.includes("Monitor") || value.includes("Needs")) {
     return "badge-warning";
   }
 
@@ -76,6 +73,12 @@ function getBadgeClass(value) {
   return "badge-info";
 }
 
+function showMessage(element, text, type) {
+  element.textContent = text;
+  element.className = `message ${type}`;
+  element.style.display = "block";
+}
+
 function renderLogin() {
   app.innerHTML = `
     <section class="login-page">
@@ -87,11 +90,11 @@ function renderLogin() {
           </div>
 
           <h1>Operational performance starts with measurable work.</h1>
-<p>
-  TatLee Factory uses this system to manage employees, departments,
-  production records, quality indicators, continuity scores and
-  performance-based recommendations through a secure internal dashboard.
-</p>
+          <p>
+            TatLee Factory uses this system to manage employees, departments,
+            production records, quality indicators, continuity scores and
+            performance-based recommendations through a secure internal dashboard.
+          </p>
 
           <div class="login-highlights">
             <div class="highlight-card">
@@ -114,9 +117,9 @@ function renderLogin() {
 
       <div class="login-panel-wrap">
         <form class="login-panel" id="loginForm">
-          <h2>Sign in</h2>
+          <h2>Secure access</h2>
           <p class="subtitle">
-            Use one of the authorized TatLee Factory accounts to access the system.
+            Sign in to monitor productivity, quality, continuity and operational performance reports.
           </p>
 
           <div id="loginError" class="login-error"></div>
@@ -193,7 +196,7 @@ function renderApp() {
           <div class="brand-mark">TF</div>
           <div>
             <strong>TatLee Factory</strong>
-            <span>Operational Performance Portal</span>
+            <span>Productivity Intelligence Portal</span>
           </div>
         </div>
 
@@ -275,6 +278,15 @@ function renderTopbar(title, subtitle) {
   `;
 }
 
+function metricCard(label, value) {
+  return `
+    <div class="metric-card">
+      <span>${label}</span>
+      <strong>${value ?? 0}</strong>
+    </div>
+  `;
+}
+
 async function renderDashboard() {
   const view = document.getElementById("view");
 
@@ -304,9 +316,9 @@ async function renderDashboard() {
       <section class="card-grid">
         ${metricCard("Total Employees", summary.totalEmployees)}
         ${metricCard("Active Employees", summary.activeEmployees)}
-        ${metricCard("Avg. Performance", `${summary.averagePerformanceScore}`)}
-        ${metricCard("Avg. Quality", `${summary.averageQualityScore}`)}
-        ${metricCard("Avg. Continuity", `${summary.averageContinuityScore}`)}
+        ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
+        ${metricCard("Avg. Quality", summary.averageQualityScore)}
+        ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
         ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
         ${metricCard("Promotion Candidates", summary.promotionCandidateCount)}
         ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
@@ -334,15 +346,6 @@ async function renderDashboard() {
       <div class="message error" style="display:block;">${error.message}</div>
     `;
   }
-}
-
-function metricCard(label, value) {
-  return `
-    <div class="metric-card">
-      <span>${label}</span>
-      <strong>${value ?? 0}</strong>
-    </div>
-  `;
 }
 
 function renderTopPerformersTable(records) {
@@ -407,15 +410,6 @@ function renderDepartmentTable(departments) {
   `;
 }
 
-function renderPlaceholder(title, text) {
-  document.getElementById("view").innerHTML = `
-    ${renderTopbar(title, text)}
-    <div class="panel">
-      <h3>${title}</h3>
-      <p class="loading">${text}</p>
-    </div>
-  `;
-}
 function canManageEmployees() {
   return ["Admin", "Manager"].includes(state.user.role);
 }
@@ -628,16 +622,8 @@ function renderEmployeesTable(employees) {
               <td>${employee.hireDate}</td>
               <td>
                 <div class="actions">
-                  ${
-                    canManageEmployees()
-                      ? `<button class="edit-btn" data-edit-employee="${employee.id}">Edit</button>`
-                      : ""
-                  }
-                  ${
-                    canDeleteEmployees()
-                      ? `<button class="danger-btn" data-delete-employee="${employee.id}">Delete</button>`
-                      : ""
-                  }
+                  ${canManageEmployees() ? `<button class="edit-btn" data-edit-employee="${employee.id}">Edit</button>` : ""}
+                  ${canDeleteEmployees() ? `<button class="danger-btn" data-delete-employee="${employee.id}">Delete</button>` : ""}
                 </div>
               </td>
             </tr>
@@ -677,7 +663,6 @@ function fillEmployeeForm(employee) {
 
 function resetEmployeeForm() {
   const form = document.getElementById("employeeForm");
-
   if (!form) return;
 
   form.reset();
@@ -749,7 +734,6 @@ async function handleEmployeeSubmit(event) {
 
 async function deleteEmployee(id) {
   const confirmed = confirm("Are you sure you want to delete this employee?");
-
   if (!confirmed) return;
 
   const message = document.getElementById("employeeMessage");
@@ -766,11 +750,6 @@ async function deleteEmployee(id) {
   }
 }
 
-function showMessage(element, text, type) {
-  element.textContent = text;
-  element.className = `message ${type}`;
-  element.style.display = "block";
-}
 function canManageDepartments() {
   return ["Admin", "Manager"].includes(state.user.role);
 }
@@ -816,7 +795,6 @@ async function renderDepartments() {
   document.getElementById("refreshDepartmentsBtn").addEventListener("click", () => loadDepartments());
 
   const form = document.getElementById("departmentForm");
-
   if (form) {
     form.addEventListener("submit", handleDepartmentSubmit);
     document.getElementById("departmentCancelBtn").addEventListener("click", resetDepartmentForm);
@@ -909,21 +887,11 @@ function renderDepartmentsTable(departments) {
               <td><strong>${department.departmentName}</strong></td>
               <td>${department.managerName}</td>
               <td>${department.description || "-"}</td>
-              <td>
-                <span class="badge badge-info">${department.employeeCount || 0} Employees</span>
-              </td>
+              <td><span class="badge badge-info">${department.employeeCount || 0} Employees</span></td>
               <td>
                 <div class="actions">
-                  ${
-                    canManageDepartments()
-                      ? `<button class="edit-btn" data-edit-department="${department.id}">Edit</button>`
-                      : ""
-                  }
-                  ${
-                    canDeleteDepartments()
-                      ? `<button class="danger-btn" data-delete-department="${department.id}">Delete</button>`
-                      : ""
-                  }
+                  ${canManageDepartments() ? `<button class="edit-btn" data-edit-department="${department.id}">Edit</button>` : ""}
+                  ${canDeleteDepartments() ? `<button class="danger-btn" data-delete-department="${department.id}">Delete</button>` : ""}
                 </div>
               </td>
             </tr>
@@ -959,7 +927,6 @@ function fillDepartmentForm(department) {
 
 function resetDepartmentForm() {
   const form = document.getElementById("departmentForm");
-
   if (!form) return;
 
   form.reset();
@@ -1016,10 +983,6 @@ async function handleDepartmentSubmit(event) {
 
     resetDepartmentForm();
     await loadDepartments();
-
-    if (state.currentView === "employees") {
-      await loadDepartmentOptions();
-    }
   } catch (error) {
     showMessage(message, error.message, "error");
   }
@@ -1045,6 +1008,7 @@ async function deleteDepartment(id) {
     showMessage(message, error.message, "error");
   }
 }
+
 function canManageProductionRecords() {
   return ["Admin", "Manager", "Production"].includes(state.user.role);
 }
@@ -1110,7 +1074,6 @@ async function renderProductionRecords() {
   document.getElementById("refreshProductionBtn").addEventListener("click", () => loadProductionRecords());
 
   const form = document.getElementById("productionRecordForm");
-
   if (form) {
     form.addEventListener("submit", handleProductionRecordSubmit);
     document.getElementById("productionCancelBtn").addEventListener("click", resetProductionRecordForm);
@@ -1134,6 +1097,16 @@ function renderProductionRecordForm() {
           </div>
 
           <div class="form-group">
+            <label>Product</label>
+            <select class="form-control" id="productionProductId"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Production Machine</label>
+            <select class="form-control" id="productionMachineId"></select>
+          </div>
+
+          <div class="form-group">
             <label>Record Date</label>
             <input class="form-control" id="productionRecordDate" type="date" />
           </div>
@@ -1145,7 +1118,7 @@ function renderProductionRecordForm() {
 
           <div class="form-group">
             <label>Product Type</label>
-            <input class="form-control" id="productionProductType" placeholder="Example: Production Line A" />
+            <input class="form-control" id="productionProductType" placeholder="Example: Chocolate Wafer Box" />
           </div>
 
           <div class="form-group">
@@ -1199,11 +1172,20 @@ function renderProductionRecordForm() {
 }
 
 async function loadProductionEmployeeOptions() {
-  const response = await apiRequest("/employees");
-  const employees = response.data;
+  const [employeeResponse, productResponse, machineResponse] = await Promise.all([
+    apiRequest("/employees"),
+    apiRequest("/products"),
+    apiRequest("/machines")
+  ]);
+
+  const employees = employeeResponse.data;
+  const products = productResponse.data;
+  const machines = machineResponse.data;
 
   const filterSelect = document.getElementById("productionEmployeeFilter");
-  const formSelect = document.getElementById("productionEmployeeId");
+  const employeeSelect = document.getElementById("productionEmployeeId");
+  const productSelect = document.getElementById("productionProductId");
+  const machineSelect = document.getElementById("productionMachineId");
 
   if (filterSelect) {
     filterSelect.innerHTML =
@@ -1213,9 +1195,21 @@ async function loadProductionEmployeeOptions() {
       `).join("");
   }
 
-  if (formSelect) {
-    formSelect.innerHTML = employees.map((employee) => `
+  if (employeeSelect) {
+    employeeSelect.innerHTML = employees.map((employee) => `
       <option value="${employee.id}">${employee.employeeCode} - ${employee.fullName}</option>
+    `).join("");
+  }
+
+  if (productSelect) {
+    productSelect.innerHTML = products.map((product) => `
+      <option value="${product.id}">${product.productCode} - ${product.productName}</option>
+    `).join("");
+  }
+
+  if (machineSelect) {
+    machineSelect.innerHTML = machines.map((machine) => `
+      <option value="${machine.id}">${machine.machineCode} - ${machine.machineName}</option>
     `).join("");
   }
 }
@@ -1265,7 +1259,7 @@ function renderProductionRecordsTable(records) {
         <thead>
           <tr>
             <th>Employee</th>
-            <th>Product Type</th>
+            <th>Product / Machine</th>
             <th>Target / Actual</th>
             <th>Defective</th>
             <th>Quality</th>
@@ -1285,41 +1279,26 @@ function renderProductionRecordsTable(records) {
                 <span class="loading">${record.departmentName || "-"}</span>
               </td>
               <td>
-                ${record.productType}<br />
-                <span class="loading">${record.recordDate} · ${record.period}</span>
+                <strong>${record.productName || record.productType}</strong><br />
+                <span class="loading">${record.productCode || "-"} · ${record.recordDate} · ${record.period}</span><br />
+                <span class="loading">${record.machineCode || "-"} · ${record.machineName || "-"}</span>
               </td>
               <td>${record.targetQuantity} / <strong>${record.actualQuantity}</strong></td>
               <td>${record.defectiveQuantity}</td>
               <td>${record.qualityScore}</td>
               <td>${record.continuityScore}</td>
               <td><strong>${record.overallPerformanceScore}</strong></td>
-              <td>
-                <span class="badge ${getBadgeClass(record.performanceGrade)}">
-                  ${record.performanceGrade}
-                </span>
-              </td>
+              <td><span class="badge ${getBadgeClass(record.performanceGrade)}">${record.performanceGrade}</span></td>
               <td>
                 <span class="badge ${record.bonusEligible ? "badge-success" : "badge-warning"}">
                   ${record.bonusEligible ? "Eligible" : "Not Eligible"}
                 </span>
               </td>
-              <td>
-                <span class="badge ${getBadgeClass(record.recommendation)}">
-                  ${record.recommendation}
-                </span>
-              </td>
+              <td><span class="badge ${getBadgeClass(record.recommendation)}">${record.recommendation}</span></td>
               <td>
                 <div class="actions">
-                  ${
-                    canManageProductionRecords()
-                      ? `<button class="edit-btn" data-edit-production="${record.id}">Edit</button>`
-                      : ""
-                  }
-                  ${
-                    canDeleteProductionRecords()
-                      ? `<button class="danger-btn" data-delete-production="${record.id}">Delete</button>`
-                      : ""
-                  }
+                  ${canManageProductionRecords() ? `<button class="edit-btn" data-edit-production="${record.id}">Edit</button>` : ""}
+                  ${canDeleteProductionRecords() ? `<button class="danger-btn" data-delete-production="${record.id}">Delete</button>` : ""}
                 </div>
               </td>
             </tr>
@@ -1352,6 +1331,8 @@ function fillProductionRecordForm(record) {
   document.getElementById("productionFormTitle").textContent = "Edit Production Record";
   document.getElementById("productionRecordId").value = record.id;
   document.getElementById("productionEmployeeId").value = record.employeeId;
+  document.getElementById("productionProductId").value = record.productId;
+  document.getElementById("productionMachineId").value = record.machineId;
   document.getElementById("productionRecordDate").value = record.recordDate;
   document.getElementById("productionPeriod").value = record.period;
   document.getElementById("productionProductType").value = record.productType;
@@ -1369,7 +1350,6 @@ function fillProductionRecordForm(record) {
 
 function resetProductionRecordForm() {
   const form = document.getElementById("productionRecordForm");
-
   if (!form) return;
 
   form.reset();
@@ -1380,6 +1360,8 @@ function resetProductionRecordForm() {
 function getProductionRecordFormData() {
   return {
     employeeId: Number(document.getElementById("productionEmployeeId").value),
+    productId: Number(document.getElementById("productionProductId").value),
+    machineId: Number(document.getElementById("productionMachineId").value),
     recordDate: document.getElementById("productionRecordDate").value,
     period: document.getElementById("productionPeriod").value.trim(),
     productType: document.getElementById("productionProductType").value.trim(),
@@ -1396,6 +1378,8 @@ function getProductionRecordFormData() {
 
 function validateProductionRecordForm(data) {
   if (!data.employeeId) return "Employee is required.";
+  if (!data.productId) return "Product is required.";
+  if (!data.machineId) return "Production machine is required.";
   if (!data.recordDate) return "Record date is required.";
   if (!data.period) return "Period is required.";
   if (!data.productType) return "Product type is required.";
@@ -1445,7 +1429,6 @@ async function handleProductionRecordSubmit(event) {
 
     resetProductionRecordForm();
     await loadProductionRecords();
-    await renderDashboardIfActive();
   } catch (error) {
     showMessage(message, error.message, "error");
   }
@@ -1453,7 +1436,6 @@ async function handleProductionRecordSubmit(event) {
 
 async function deleteProductionRecord(id) {
   const confirmed = confirm("Are you sure you want to delete this production record?");
-
   if (!confirmed) return;
 
   const message = document.getElementById("productionMessage");
@@ -1470,11 +1452,6 @@ async function deleteProductionRecord(id) {
   }
 }
 
-async function renderDashboardIfActive() {
-  if (state.currentView === "dashboard") {
-    await renderDashboard();
-  }
-}
 async function renderReports() {
   const view = document.getElementById("view");
 
@@ -1614,21 +1591,13 @@ function renderReportRecordTable(records, emptyMessage) {
               </td>
               <td>${record.departmentName || "-"}</td>
               <td><strong>${record.overallPerformanceScore}</strong></td>
-              <td>
-                <span class="badge ${getBadgeClass(record.performanceGrade)}">
-                  ${record.performanceGrade}
-                </span>
-              </td>
+              <td><span class="badge ${getBadgeClass(record.performanceGrade)}">${record.performanceGrade}</span></td>
               <td>
                 <span class="badge ${record.bonusEligible ? "badge-success" : "badge-warning"}">
                   ${record.bonusEligible ? "Eligible" : "Not Eligible"}
                 </span>
               </td>
-              <td>
-                <span class="badge ${getBadgeClass(record.recommendation)}">
-                  ${record.recommendation}
-                </span>
-              </td>
+              <td><span class="badge ${getBadgeClass(record.recommendation)}">${record.recommendation}</span></td>
             </tr>
             <tr>
               <td colspan="6" style="background:#f8fafc;">
@@ -1671,11 +1640,7 @@ function renderContinuityTable(records) {
               <td><strong>${record.continuityScore}</strong></td>
               <td>${record.absentDays}</td>
               <td>${record.lateDays}</td>
-              <td>
-                <span class="badge ${getBadgeClass(record.recommendation)}">
-                  ${record.recommendation}
-                </span>
-              </td>
+              <td><span class="badge ${getBadgeClass(record.recommendation)}">${record.recommendation}</span></td>
             </tr>
           `).join("")}
         </tbody>
@@ -1718,4 +1683,5 @@ function renderDepartmentReportTable(departments) {
     </div>
   `;
 }
+
 renderApp();

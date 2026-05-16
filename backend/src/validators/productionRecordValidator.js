@@ -5,6 +5,14 @@ function validateProductionRecordInput(data) {
     errors.push("Valid employee is required.");
   }
 
+  if (!data.productId || Number(data.productId) <= 0) {
+  errors.push("Valid product is required.");
+}
+
+if (!data.machineId || Number(data.machineId) <= 0) {
+  errors.push("Valid production machine is required.");
+}
+
   if (!data.recordDate || data.recordDate.trim() === "") {
     errors.push("Record date is required.");
   }

@@ -40,7 +40,7 @@ async function initializeDatabase() {
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     );
 
-        CREATE TABLE IF NOT EXISTS products (
+    CREATE TABLE IF NOT EXISTS products (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       productCode TEXT NOT NULL UNIQUE,
       productName TEXT NOT NULL,
@@ -79,6 +79,8 @@ async function initializeDatabase() {
     CREATE TABLE IF NOT EXISTS production_records (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       employeeId INTEGER NOT NULL,
+      productId INTEGER NOT NULL,
+      machineId INTEGER NOT NULL,
       recordDate TEXT NOT NULL,
       period TEXT NOT NULL,
       productType TEXT NOT NULL,
@@ -91,7 +93,9 @@ async function initializeDatabase() {
       lateDays INTEGER NOT NULL,
       notes TEXT,
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (employeeId) REFERENCES employees(id) ON DELETE CASCADE
+      FOREIGN KEY (employeeId) REFERENCES employees(id) ON DELETE CASCADE,
+      FOREIGN KEY (productId) REFERENCES products(id) ON DELETE CASCADE,
+      FOREIGN KEY (machineId) REFERENCES production_machines(id) ON DELETE CASCADE
     );
   `);
 
@@ -140,7 +144,7 @@ async function seedInitialData(database) {
     }
   }
 
-    const productCount = await database.get("SELECT COUNT(*) AS count FROM products");
+  const productCount = await database.get("SELECT COUNT(*) AS count FROM products");
 
   if (productCount.count === 0) {
     const products = [
@@ -233,20 +237,24 @@ async function seedInitialData(database) {
 
   if (recordCount.count === 0) {
     const records = [
-      [1, "2026-05-01", "2026-Q2", "Packaging Unit", 500, 465, 12, 90, 22, 1, 2, "Good production result with minor defect risk."],
-      [2, "2026-05-01", "2026-Q2", "Quality Inspection", 350, 340, 5, 95, 22, 0, 1, "Strong quality performance."],
-      [3, "2026-05-01", "2026-Q2", "Box Assembly", 420, 360, 28, 78, 22, 3, 4, "Needs improvement in quality and continuity."],
-      [4, "2026-05-01", "2026-Q2", "Production Line A", 600, 620, 8, 96, 22, 0, 0, "Excellent production, quality, and continuity."],
-      [5, "2026-05-01", "2026-Q2", "Shipment Preparation", 300, 270, 9, 82, 22, 2, 5, "Moderate performance; late arrivals should be monitored."],
-      [6, "2026-05-01", "2026-Q2", "Production Support", 400, 285, 35, 65, 22, 5, 6, "Critical performance indicators require review."]
+      [1, 1, 1, "2026-05-01", "2026-Q2", "Chocolate Wafer Box", 500, 465, 12, 90, 22, 1, 2, "Good production result with minor defect risk."],
+      [2, 2, 5, "2026-05-01", "2026-Q2", "Protein Bar Pack", 350, 340, 5, 95, 22, 0, 1, "Strong quality performance."],
+      [3, 3, 3, "2026-05-01", "2026-Q2", "Biscuit Family Pack", 420, 360, 28, 78, 22, 3, 4, "Needs improvement in quality and continuity."],
+      [4, 4, 1, "2026-05-01", "2026-Q2", "Mini Cake Box", 600, 620, 8, 96, 22, 0, 0, "Excellent production, quality, and continuity."],
+      [5, 8, 8, "2026-05-01", "2026-Q2", "Fruit Juice Bottle", 300, 270, 9, 82, 22, 2, 5, "Moderate performance; late arrivals should be monitored."],
+      [6, 5, 2, "2026-05-01", "2026-Q2", "Cereal Bar Carton", 400, 285, 35, 65, 22, 5, 6, "Critical performance indicators require review."],
+      [4, 10, 9, "2026-05-10", "2026-Q2", "Energy Drink Can", 550, 590, 6, 97, 22, 0, 0, "Excellent performance with strong productivity."],
+      [1, 7, 7, "2026-05-11", "2026-Q2", "Coffee Sachet Box", 520, 510, 14, 88, 22, 1, 1, "Stable production result."],
+      [2, 12, 5, "2026-05-12", "2026-Q2", "Liquid Soap Bottle", 450, 430, 8, 93, 22, 0, 2, "Good quality control and stable continuity."],
+      [3, 21, 4, "2026-05-13", "2026-Q2", "Snack Chips Pack", 600, 520, 30, 74, 22, 4, 3, "Requires close monitoring in next period."]
     ];
 
     for (const record of records) {
       await database.run(
         `INSERT INTO production_records
-        (employeeId, recordDate, period, productType, targetQuantity, actualQuantity, defectiveQuantity,
+        (employeeId, productId, machineId, recordDate, period, productType, targetQuantity, actualQuantity, defectiveQuantity,
          onTimeCompletionScore, plannedWorkDays, absentDays, lateDays, notes)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         record
       );
     }

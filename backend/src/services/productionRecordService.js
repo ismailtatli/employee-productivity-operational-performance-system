@@ -3,6 +3,8 @@ const employeeRepository = require("../repositories/employeeRepository");
 const { validateProductionRecordInput } = require("../validators/productionRecordValidator");
 const { enrichProductionRecord } = require("./performanceCalculator");
 const { enrichWithRecommendation } = require("./recommendationService");
+const productRepository = require("../repositories/productRepository");
+const machineRepository = require("../repositories/machineRepository");
 
 function analyzeRecord(record) {
   const performanceAnalysis = enrichProductionRecord(record);
@@ -12,6 +14,8 @@ function analyzeRecord(record) {
 function normalizeRecordInput(data) {
   return {
     employeeId: Number(data.employeeId),
+    productId: Number(data.productId),
+    machineId: Number(data.machineId),
     recordDate: data.recordDate,
     period: data.period,
     productType: data.productType,
@@ -78,6 +82,22 @@ async function createProductionRecord(data) {
     error.statusCode = 404;
     throw error;
   }
+
+  const product = await productRepository.getProductById(data.productId);
+
+if (!product) {
+  const error = new Error("Product not found.");
+  error.statusCode = 404;
+  throw error;
+}
+
+const machine = await machineRepository.getMachineById(data.machineId);
+
+if (!machine) {
+  const error = new Error("Production machine not found.");
+  error.statusCode = 404;
+  throw error;
+}
 
   const created = await productionRecordRepository.createProductionRecord(
     normalizeRecordInput(data)
