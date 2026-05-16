@@ -255,7 +255,7 @@ function renderCurrentView() {
   if (state.currentView === "employees") renderEmployees();
   if (state.currentView === "departments") renderDepartments();
   if (state.currentView === "production") renderProductionRecords();
-  if (state.currentView === "reports") renderPlaceholder("Reports", "Detailed operational reports will be connected in the next step.");
+  if (state.currentView === "reports") renderReports();
 }
 
 function renderTopbar(title, subtitle) {
@@ -1474,5 +1474,248 @@ async function renderDashboardIfActive() {
   if (state.currentView === "dashboard") {
     await renderDashboard();
   }
+}
+async function renderReports() {
+  const view = document.getElementById("view");
+
+  view.innerHTML = `
+    ${renderTopbar(
+      "Reports",
+      "Detailed operational reports for employee productivity, performance decisions and department analysis."
+    )}
+
+    <div class="loading">Loading reports...</div>
+  `;
+
+  try {
+    const [
+      summaryResponse,
+      topPerformersResponse,
+      bonusResponse,
+      promotionResponse,
+      lowContinuityResponse,
+      hrReviewResponse,
+      departmentResponse
+    ] = await Promise.all([
+      apiRequest("/reports/summary"),
+      apiRequest("/reports/top-performers"),
+      apiRequest("/reports/bonus-eligible"),
+      apiRequest("/reports/promotion-candidates"),
+      apiRequest("/reports/low-continuity"),
+      apiRequest("/reports/hr-review-required"),
+      apiRequest("/reports/department-performance")
+    ]);
+
+    const summary = summaryResponse.data;
+    const topPerformers = topPerformersResponse.data;
+    const bonusEligible = bonusResponse.data;
+    const promotionCandidates = promotionResponse.data;
+    const lowContinuity = lowContinuityResponse.data;
+    const hrReviewRequired = hrReviewResponse.data;
+    const departments = departmentResponse.data;
+
+    view.innerHTML = `
+      ${renderTopbar(
+        "Reports",
+        "Detailed operational reports for employee productivity, performance decisions and department analysis."
+      )}
+
+      <section class="card-grid">
+        ${metricCard("Total Employees", summary.totalEmployees)}
+        ${metricCard("Production Records", summary.totalProductionRecords)}
+        ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
+        ${metricCard("Avg. Quality", summary.averageQualityScore)}
+        ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
+        ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
+        ${metricCard("Promotion Candidates", summary.promotionCandidateCount)}
+        ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
+      </section>
+
+      <section class="content-grid">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Top Performers</h3>
+          </div>
+          ${renderReportRecordTable(topPerformers, "No top performer records found.")}
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Bonus Eligible Employees</h3>
+          </div>
+          ${renderReportRecordTable(bonusEligible, "No bonus eligible employees found.")}
+        </div>
+      </section>
+
+      <section class="content-grid" style="margin-top:22px;">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Promotion Candidates</h3>
+          </div>
+          ${renderReportRecordTable(promotionCandidates, "No promotion candidates found.")}
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Low Continuity Employees</h3>
+          </div>
+          ${renderContinuityTable(lowContinuity)}
+        </div>
+      </section>
+
+      <section class="content-grid" style="margin-top:22px;">
+        <div class="panel">
+          <div class="panel-header">
+            <h3>HR Review Required</h3>
+          </div>
+          ${renderReportRecordTable(hrReviewRequired, "No HR review required records found.")}
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h3>Department Performance</h3>
+          </div>
+          ${renderDepartmentReportTable(departments)}
+        </div>
+      </section>
+    `;
+  } catch (error) {
+    view.innerHTML = `
+      ${renderTopbar("Reports", "Unable to load report data.")}
+      <div class="message error" style="display:block;">${error.message}</div>
+    `;
+  }
+}
+
+function renderReportRecordTable(records, emptyMessage) {
+  if (!records.length) {
+    return `<p class="loading">${emptyMessage}</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Department</th>
+            <th>Score</th>
+            <th>Grade</th>
+            <th>Bonus</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map((record) => `
+            <tr>
+              <td>
+                <strong>${record.fullName}</strong><br />
+                <span class="loading">${record.employeeCode || ""}</span>
+              </td>
+              <td>${record.departmentName || "-"}</td>
+              <td><strong>${record.overallPerformanceScore}</strong></td>
+              <td>
+                <span class="badge ${getBadgeClass(record.performanceGrade)}">
+                  ${record.performanceGrade}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${record.bonusEligible ? "badge-success" : "badge-warning"}">
+                  ${record.bonusEligible ? "Eligible" : "Not Eligible"}
+                </span>
+              </td>
+              <td>
+                <span class="badge ${getBadgeClass(record.recommendation)}">
+                  ${record.recommendation}
+                </span>
+              </td>
+            </tr>
+            <tr>
+              <td colspan="6" style="background:#f8fafc;">
+                <strong>Report Summary:</strong> ${record.reportSummary}
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderContinuityTable(records) {
+  if (!records.length) {
+    return `<p class="loading">No low continuity employees found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Department</th>
+            <th>Continuity</th>
+            <th>Absent</th>
+            <th>Late</th>
+            <th>Recommendation</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map((record) => `
+            <tr>
+              <td>
+                <strong>${record.fullName}</strong><br />
+                <span class="loading">${record.employeeCode || ""}</span>
+              </td>
+              <td>${record.departmentName || "-"}</td>
+              <td><strong>${record.continuityScore}</strong></td>
+              <td>${record.absentDays}</td>
+              <td>${record.lateDays}</td>
+              <td>
+                <span class="badge ${getBadgeClass(record.recommendation)}">
+                  ${record.recommendation}
+                </span>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderDepartmentReportTable(departments) {
+  if (!departments.length) {
+    return `<p class="loading">No department performance data found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Department</th>
+            <th>Records</th>
+            <th>Total Production</th>
+            <th>Avg. Score</th>
+            <th>Quality</th>
+            <th>Continuity</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${departments.map((department) => `
+            <tr>
+              <td><strong>${department.departmentName}</strong></td>
+              <td>${department.recordCount}</td>
+              <td>${department.totalActualProduction}</td>
+              <td><strong>${department.averagePerformanceScore}</strong></td>
+              <td>${department.averageQualityScore}</td>
+              <td>${department.averageContinuityScore}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
 }
 renderApp();
