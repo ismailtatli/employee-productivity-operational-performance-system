@@ -7,7 +7,7 @@ const swaggerOptions = {
       title: "Employee Productivity and Operational Performance Management System API",
       version: "1.0.0",
       description:
-        "RESTful API documentation for TatLee Factory Employee Productivity and Operational Performance Management System."
+        "RESTful API documentation for TatLee Factory Employee Productivity and Operational Performance Management System. The API supports authentication, employee management, department management, product catalog management, production machine management, production record tracking and operational performance reports."
     },
     servers: [
       {
@@ -38,6 +38,7 @@ const swaggerOptions = {
             }
           }
         },
+
         Department: {
           type: "object",
           properties: {
@@ -48,9 +49,10 @@ const swaggerOptions = {
               type: "string",
               example: "Main production operations department"
             },
-            employeeCount: { type: "integer", example: 3 }
+            employeeCount: { type: "integer", example: 40 }
           }
         },
+
         Employee: {
           type: "object",
           properties: {
@@ -68,14 +70,58 @@ const swaggerOptions = {
             status: { type: "string", example: "Active" }
           }
         },
+
+        Product: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            productCode: { type: "string", example: "PRD-001" },
+            productName: { type: "string", example: "Chocolate Wafer Box" },
+            category: { type: "string", example: "Food Packaging" },
+            standardUnit: { type: "string", example: "box" },
+            targetPerShift: { type: "integer", example: 500 },
+            status: { type: "string", example: "Active" },
+            createdAt: {
+              type: "string",
+              example: "2026-05-16 08:51:22"
+            }
+          }
+        },
+
+        ProductionMachine: {
+          type: "object",
+          properties: {
+            id: { type: "integer", example: 1 },
+            machineCode: { type: "string", example: "MCH-001" },
+            machineName: { type: "string", example: "Filling Line A" },
+            departmentId: { type: "integer", example: 1 },
+            departmentName: { type: "string", example: "Production" },
+            status: { type: "string", example: "Active" },
+            capacityPerShift: { type: "integer", example: 1200 },
+            description: {
+              type: "string",
+              example: "High-volume filling and primary production line"
+            },
+            createdAt: {
+              type: "string",
+              example: "2026-05-16 08:51:22"
+            }
+          }
+        },
+
         ProductionRecord: {
           type: "object",
           properties: {
             id: { type: "integer", example: 1 },
             employeeId: { type: "integer", example: 1 },
+            productId: { type: "integer", example: 1 },
+            machineId: { type: "integer", example: 1 },
             recordDate: { type: "string", example: "2026-05-01" },
             period: { type: "string", example: "2026-Q2" },
-            productType: { type: "string", example: "Packaging Unit" },
+            productType: {
+              type: "string",
+              example: "Chocolate Wafer Box"
+            },
             targetQuantity: { type: "integer", example: 500 },
             actualQuantity: { type: "integer", example: 465 },
             defectiveQuantity: { type: "integer", example: 12 },
@@ -83,21 +129,39 @@ const swaggerOptions = {
             plannedWorkDays: { type: "integer", example: 22 },
             absentDays: { type: "integer", example: 1 },
             lateDays: { type: "integer", example: 2 },
+            fullName: { type: "string", example: "Ahmet Yılmaz" },
+            employeeCode: { type: "string", example: "EMP-001" },
+            position: { type: "string", example: "Production Operator" },
+            departmentName: { type: "string", example: "Production" },
+            productCode: { type: "string", example: "PRD-001" },
+            productName: { type: "string", example: "Chocolate Wafer Box" },
+            productCategory: { type: "string", example: "Food Packaging" },
+            standardUnit: { type: "string", example: "box" },
+            machineCode: { type: "string", example: "MCH-001" },
+            machineName: { type: "string", example: "Filling Line A" },
+            machineStatus: { type: "string", example: "Active" },
             targetCompletionScore: { type: "number", example: 93 },
             qualityScore: { type: "number", example: 97.42 },
             continuityScore: { type: "number", example: 90.91 },
             overallPerformanceScore: { type: "number", example: 93.09 },
             performanceGrade: { type: "string", example: "Excellent" },
             bonusEligible: { type: "boolean", example: true },
-            recommendation: { type: "string", example: "Promotion Candidate" },
+            recommendation: {
+              type: "string",
+              example: "Promotion Candidate"
+            },
             reportSummary: {
               type: "string",
               example:
-                "The employee exceeded the expected operational performance level."
+                "Ahmet Yılmaz from Production exceeded the expected operational performance level with strong quality, continuity, and on-time completion indicators."
             },
             notes: {
               type: "string",
               example: "Good production result with minor defect risk."
+            },
+            createdAt: {
+              type: "string",
+              example: "2026-05-16 08:51:22"
             }
           }
         }
@@ -121,6 +185,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/auth/login": {
         post: {
           summary: "Login with email and password",
@@ -146,6 +211,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/auth/me": {
         get: {
           summary: "Get current authenticated user",
@@ -160,6 +226,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/employees": {
         get: {
           summary: "Get all employees",
@@ -189,7 +256,7 @@ const swaggerOptions = {
                   ],
                   properties: {
                     fullName: { type: "string", example: "Ali Vural" },
-                    employeeCode: { type: "string", example: "EMP-100" },
+                    employeeCode: { type: "string", example: "EMP-101" },
                     email: {
                       type: "string",
                       example: "ali.vural@tatleefactory.com"
@@ -212,10 +279,14 @@ const swaggerOptions = {
             },
             400: {
               description: "Validation error"
+            },
+            403: {
+              description: "Forbidden"
             }
           }
         }
       },
+
       "/api/employees/{id}": {
         get: {
           summary: "Get employee by id",
@@ -255,7 +326,9 @@ const swaggerOptions = {
             }
           },
           responses: {
-            200: { description: "Employee updated successfully" }
+            200: { description: "Employee updated successfully" },
+            400: { description: "Validation error" },
+            404: { description: "Employee not found" }
           }
         },
         delete: {
@@ -270,10 +343,13 @@ const swaggerOptions = {
             }
           ],
           responses: {
-            200: { description: "Employee deleted successfully" }
+            200: { description: "Employee deleted successfully" },
+            403: { description: "Forbidden" },
+            404: { description: "Employee not found" }
           }
         }
       },
+
       "/api/employees/search": {
         get: {
           summary: "Search employees",
@@ -292,6 +368,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/employees/department/{departmentId}": {
         get: {
           summary: "Get employees by department",
@@ -309,6 +386,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/departments": {
         get: {
           summary: "Get all departments",
@@ -341,10 +419,13 @@ const swaggerOptions = {
             }
           },
           responses: {
-            201: { description: "Department created successfully" }
+            201: { description: "Department created successfully" },
+            400: { description: "Validation error" },
+            403: { description: "Forbidden" }
           }
         }
       },
+
       "/api/departments/{id}": {
         get: {
           summary: "Get department by id",
@@ -358,7 +439,8 @@ const swaggerOptions = {
             }
           ],
           responses: {
-            200: { description: "Department returned" }
+            200: { description: "Department returned" },
+            404: { description: "Department not found" }
           }
         },
         put: {
@@ -383,7 +465,9 @@ const swaggerOptions = {
             }
           },
           responses: {
-            200: { description: "Department updated successfully" }
+            200: { description: "Department updated successfully" },
+            400: { description: "Validation error" },
+            404: { description: "Department not found" }
           }
         },
         delete: {
@@ -398,17 +482,257 @@ const swaggerOptions = {
             }
           ],
           responses: {
-            200: { description: "Department deleted successfully" }
+            200: { description: "Department deleted successfully" },
+            403: { description: "Forbidden" },
+            404: { description: "Department not found" }
           }
         }
       },
+
+      "/api/products": {
+        get: {
+          summary: "Get all products",
+          tags: ["Products"],
+          responses: {
+            200: {
+              description: "Product list returned"
+            }
+          }
+        },
+        post: {
+          summary: "Create a new product",
+          tags: ["Products"],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "productCode",
+                    "productName",
+                    "category",
+                    "standardUnit",
+                    "targetPerShift"
+                  ],
+                  properties: {
+                    productCode: { type: "string", example: "PRD-100" },
+                    productName: {
+                      type: "string",
+                      example: "Chocolate Wafer Box"
+                    },
+                    category: {
+                      type: "string",
+                      example: "Food Packaging"
+                    },
+                    standardUnit: { type: "string", example: "box" },
+                    targetPerShift: { type: "integer", example: 500 },
+                    status: { type: "string", example: "Active" }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            201: { description: "Product created successfully" },
+            400: { description: "Validation error" },
+            403: { description: "Forbidden" }
+          }
+        }
+      },
+
+      "/api/products/{id}": {
+        get: {
+          summary: "Get product by id",
+          tags: ["Products"],
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "integer" }
+            }
+          ],
+          responses: {
+            200: { description: "Product returned" },
+            404: { description: "Product not found" }
+          }
+        },
+        put: {
+          summary: "Update product by id",
+          tags: ["Products"],
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "integer" }
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/Product"
+                }
+              }
+            }
+          },
+          responses: {
+            200: { description: "Product updated successfully" },
+            400: { description: "Validation error" },
+            404: { description: "Product not found" }
+          }
+        },
+        delete: {
+          summary: "Delete product by id",
+          tags: ["Products"],
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "integer" }
+            }
+          ],
+          responses: {
+            200: { description: "Product deleted successfully" },
+            403: { description: "Forbidden" },
+            404: { description: "Product not found" }
+          }
+        }
+      },
+
+      "/api/machines": {
+        get: {
+          summary: "Get all production machines",
+          tags: ["Machines"],
+          responses: {
+            200: {
+              description: "Production machine list returned"
+            }
+          }
+        },
+        post: {
+          summary: "Create a new production machine",
+          tags: ["Machines"],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  required: [
+                    "machineCode",
+                    "machineName",
+                    "departmentId",
+                    "capacityPerShift"
+                  ],
+                  properties: {
+                    machineCode: { type: "string", example: "MCH-100" },
+                    machineName: {
+                      type: "string",
+                      example: "Filling Line C"
+                    },
+                    departmentId: { type: "integer", example: 1 },
+                    status: { type: "string", example: "Active" },
+                    capacityPerShift: { type: "integer", example: 800 },
+                    description: {
+                      type: "string",
+                      example:
+                        "High-volume production line for packaged goods."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          responses: {
+            201: {
+              description: "Production machine created successfully"
+            },
+            400: { description: "Validation error" },
+            403: { description: "Forbidden" }
+          }
+        }
+      },
+
+      "/api/machines/{id}": {
+        get: {
+          summary: "Get production machine by id",
+          tags: ["Machines"],
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "integer" }
+            }
+          ],
+          responses: {
+            200: { description: "Production machine returned" },
+            404: { description: "Production machine not found" }
+          }
+        },
+        put: {
+          summary: "Update production machine by id",
+          tags: ["Machines"],
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "integer" }
+            }
+          ],
+          requestBody: {
+            required: true,
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/ProductionMachine"
+                }
+              }
+            }
+          },
+          responses: {
+            200: {
+              description: "Production machine updated successfully"
+            },
+            400: { description: "Validation error" },
+            404: { description: "Production machine not found" }
+          }
+        },
+        delete: {
+          summary: "Delete production machine by id",
+          tags: ["Machines"],
+          parameters: [
+            {
+              in: "path",
+              name: "id",
+              required: true,
+              schema: { type: "integer" }
+            }
+          ],
+          responses: {
+            200: {
+              description: "Production machine deleted successfully"
+            },
+            403: { description: "Forbidden" },
+            404: { description: "Production machine not found" }
+          }
+        }
+      },
+
       "/api/production-records": {
         get: {
           summary: "Get all production records with performance analysis",
           tags: ["Production Records"],
           responses: {
             200: {
-              description: "Production records returned with calculated performance analysis"
+              description:
+                "Production records returned with calculated performance analysis"
             }
           }
         },
@@ -423,6 +747,8 @@ const swaggerOptions = {
                   type: "object",
                   required: [
                     "employeeId",
+                    "productId",
+                    "machineId",
                     "recordDate",
                     "period",
                     "productType",
@@ -436,11 +762,13 @@ const swaggerOptions = {
                   ],
                   properties: {
                     employeeId: { type: "integer", example: 4 },
+                    productId: { type: "integer", example: 1 },
+                    machineId: { type: "integer", example: 1 },
                     recordDate: { type: "string", example: "2026-05-15" },
                     period: { type: "string", example: "2026-Q2" },
                     productType: {
                       type: "string",
-                      example: "Production Line B"
+                      example: "Chocolate Wafer Box"
                     },
                     targetQuantity: { type: "integer", example: 550 },
                     actualQuantity: { type: "integer", example: 590 },
@@ -462,10 +790,17 @@ const swaggerOptions = {
           responses: {
             201: {
               description: "Production record created successfully"
+            },
+            400: {
+              description: "Validation error"
+            },
+            403: {
+              description: "Forbidden"
             }
           }
         }
       },
+
       "/api/production-records/{id}": {
         get: {
           summary: "Get production record by id",
@@ -479,7 +814,8 @@ const swaggerOptions = {
             }
           ],
           responses: {
-            200: { description: "Production record returned" }
+            200: { description: "Production record returned" },
+            404: { description: "Production record not found" }
           }
         },
         put: {
@@ -504,7 +840,15 @@ const swaggerOptions = {
             }
           },
           responses: {
-            200: { description: "Production record updated successfully" }
+            200: {
+              description: "Production record updated successfully"
+            },
+            400: {
+              description: "Validation error"
+            },
+            404: {
+              description: "Production record not found"
+            }
           }
         },
         delete: {
@@ -519,10 +863,19 @@ const swaggerOptions = {
             }
           ],
           responses: {
-            200: { description: "Production record deleted successfully" }
+            200: {
+              description: "Production record deleted successfully"
+            },
+            403: {
+              description: "Forbidden"
+            },
+            404: {
+              description: "Production record not found"
+            }
           }
         }
       },
+
       "/api/production-records/employee/{employeeId}": {
         get: {
           summary: "Get production records by employee",
@@ -536,10 +889,13 @@ const swaggerOptions = {
             }
           ],
           responses: {
-            200: { description: "Production records returned by employee" }
+            200: {
+              description: "Production records returned by employee"
+            }
           }
         }
       },
+
       "/api/reports/summary": {
         get: {
           summary: "Get dashboard summary report",
@@ -549,6 +905,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/reports/top-performers": {
         get: {
           summary: "Get top performers",
@@ -558,6 +915,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/reports/bonus-eligible": {
         get: {
           summary: "Get bonus eligible employees",
@@ -567,6 +925,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/reports/promotion-candidates": {
         get: {
           summary: "Get promotion candidates",
@@ -576,6 +935,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/reports/low-continuity": {
         get: {
           summary: "Get employees with low continuity score",
@@ -585,6 +945,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/reports/hr-review-required": {
         get: {
           summary: "Get employees requiring HR review",
@@ -594,6 +955,7 @@ const swaggerOptions = {
           }
         }
       },
+
       "/api/reports/department-performance": {
         get: {
           summary: "Get department performance report",
