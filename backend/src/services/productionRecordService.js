@@ -1,42 +1,61 @@
 const productionRecordRepository = require("../repositories/productionRecordRepository");
 const employeeRepository = require("../repositories/employeeRepository");
-const { validateProductionRecordInput } = require("../validators/productionRecordValidator");
-const { enrichProductionRecord } = require("./performanceCalculator");
-const { enrichWithRecommendation } = require("./recommendationService");
 const productRepository = require("../repositories/productRepository");
 const machineRepository = require("../repositories/machineRepository");
+const { validateProductionRecordInput } = require("../validators/productionRecordValidator");
 
-function analyzeRecord(record) {
-  const performanceAnalysis = enrichProductionRecord(record);
-  return enrichWithRecommendation(performanceAnalysis);
-}
+const {
+  calculateTargetCompletionScore,
+  calculateQualityScore,
+  calculateContinuityScore,
+  calculateOverallPerformanceScore,
+  calculatePerformanceGrade
+} = require("./performanceCalculator");
 
-function normalizeRecordInput(data) {
+const {
+  determineBonusEligibility,
+  determineRecommendation,
+  generateEmployeeReportSummary
+} = require("./recommendationService");
+
+function enrichProductionRecord(record) {
+  const targetCompletionScore = calculateTargetCompletionScore(record);
+  const qualityScore = calculateQualityScore(record);
+  const continuityScore = calculateContinuityScore(record);
+  const overallPerformanceScore = calculateOverallPerformanceScore(record);
+  const performanceGrade = calculatePerformanceGrade(overallPerformanceScore);
+
+  const enrichedRecord = {
+    ...record,
+    targetCompletionScore,
+    qualityScore,
+    continuityScore,
+    overallPerformanceScore,
+    performanceGrade
+  };
+
+  const bonusEligible = determineBonusEligibility(enrichedRecord);
+  const recommendation = determineRecommendation(enrichedRecord);
+  const reportSummary = generateEmployeeReportSummary(enrichedRecord);
+
   return {
-    employeeId: Number(data.employeeId),
-    productId: Number(data.productId),
-    machineId: Number(data.machineId),
-    recordDate: data.recordDate,
-    period: data.period,
-    productType: data.productType,
-    targetQuantity: Number(data.targetQuantity),
-    actualQuantity: Number(data.actualQuantity),
-    defectiveQuantity: Number(data.defectiveQuantity),
-    onTimeCompletionScore: Number(data.onTimeCompletionScore),
-    plannedWorkDays: Number(data.plannedWorkDays),
-    absentDays: Number(data.absentDays),
-    lateDays: Number(data.lateDays),
-    notes: data.notes || ""
+    ...enrichedRecord,
+    bonusEligible,
+    recommendation,
+    reportSummary
   };
 }
 
-async function getAllProductionRecords() {
-  const records = await productionRecordRepository.getAllProductionRecords();
-  return records.map(analyzeRecord);
+async function getAllProductionRecords(ownerUserId) {
+  const records = await productionRecordRepository.getAllProductionRecords(ownerUserId);
+
+  return {
+    data: records.map(enrichProductionRecord)
+  };
 }
 
-async function getProductionRecordById(id) {
-  const record = await productionRecordRepository.getProductionRecordById(id);
+async function getProductionRecordById(id, ownerUserId) {
+  const record = await productionRecordRepository.getProductionRecordById(id, ownerUserId);
 
   if (!record) {
     const error = new Error("Production record not found.");
@@ -44,17 +63,13 @@ async function getProductionRecordById(id) {
     throw error;
   }
 
-  return analyzeRecord(record);
+  return {
+    data: enrichProductionRecord(record)
+  };
 }
 
-async function getProductionRecordsByEmployee(employeeId) {
-  if (!employeeId || Number(employeeId) <= 0) {
-    const error = new Error("Valid employee id is required.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const employee = await employeeRepository.getEmployeeById(employeeId);
+async function getProductionRecordsByEmployee(employeeId, ownerUserId) {
+  const employee = await employeeRepository.getEmployeeById(employeeId, ownerUserId);
 
   if (!employee) {
     const error = new Error("Employee not found.");
@@ -62,54 +77,44 @@ async function getProductionRecordsByEmployee(employeeId) {
     throw error;
   }
 
-  const records = await productionRecordRepository.getProductionRecordsByEmployee(employeeId);
-  return records.map(analyzeRecord);
-}
-
-async function createProductionRecord(data) {
-  const validation = validateProductionRecordInput(data);
-
-  if (!validation.isValid) {
-    const error = new Error(validation.errors.join(" "));
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const employee = await employeeRepository.getEmployeeById(data.employeeId);
-
-  if (!employee) {
-    const error = new Error("Employee not found.");
-    error.statusCode = 404;
-    throw error;
-  }
-
-  const product = await productRepository.getProductById(data.productId);
-
-if (!product) {
-  const error = new Error("Product not found.");
-  error.statusCode = 404;
-  throw error;
-}
-
-const machine = await machineRepository.getMachineById(data.machineId);
-
-if (!machine) {
-  const error = new Error("Production machine not found.");
-  error.statusCode = 404;
-  throw error;
-}
-
-  const created = await productionRecordRepository.createProductionRecord(
-    normalizeRecordInput(data)
+  const records = await productionRecordRepository.getProductionRecordsByEmployee(
+    employeeId,
+    ownerUserId
   );
 
-  return analyzeRecord(created);
+  return {
+    data: records.map(enrichProductionRecord)
+  };
 }
 
-async function updateProductionRecord(id, data) {
-  await getProductionRecordById(id);
+async function validateRelatedEntities(recordData, ownerUserId) {
+  const employee = await employeeRepository.getEmployeeById(recordData.employeeId, ownerUserId);
 
-  const validation = validateProductionRecordInput(data);
+  if (!employee) {
+    const error = new Error("Employee not found for this user.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const product = await productRepository.getProductById(recordData.productId, ownerUserId);
+
+  if (!product) {
+    const error = new Error("Product not found for this user.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const machine = await machineRepository.getMachineById(recordData.machineId, ownerUserId);
+
+  if (!machine) {
+    const error = new Error("Production machine not found for this user.");
+    error.statusCode = 404;
+    throw error;
+  }
+}
+
+async function createProductionRecord(recordData, ownerUserId) {
+  const validation = validateProductionRecordInput(recordData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -117,35 +122,59 @@ async function updateProductionRecord(id, data) {
     throw error;
   }
 
-  const employee = await employeeRepository.getEmployeeById(data.employeeId);
+  await validateRelatedEntities(recordData, ownerUserId);
 
-  if (!employee) {
-    const error = new Error("Employee not found.");
+  const record = await productionRecordRepository.createProductionRecord(recordData, ownerUserId);
+
+  return {
+    message: "Production record created successfully.",
+    data: enrichProductionRecord(record)
+  };
+}
+
+async function updateProductionRecord(id, recordData, ownerUserId) {
+  const validation = validateProductionRecordInput(recordData);
+
+  if (!validation.isValid) {
+    const error = new Error(validation.errors.join(" "));
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingRecord = await productionRecordRepository.getProductionRecordById(id, ownerUserId);
+
+  if (!existingRecord) {
+    const error = new Error("Production record not found.");
     error.statusCode = 404;
     throw error;
   }
 
-  const updated = await productionRecordRepository.updateProductionRecord(
+  await validateRelatedEntities(recordData, ownerUserId);
+
+  const record = await productionRecordRepository.updateProductionRecord(
     id,
-    normalizeRecordInput(data)
+    recordData,
+    ownerUserId
   );
 
-  return analyzeRecord(updated);
+  return {
+    message: "Production record updated successfully.",
+    data: enrichProductionRecord(record)
+  };
 }
 
-async function deleteProductionRecord(id) {
-  await getProductionRecordById(id);
+async function deleteProductionRecord(id, ownerUserId) {
+  const record = await productionRecordRepository.deleteProductionRecord(id, ownerUserId);
 
-  const deleted = await productionRecordRepository.deleteProductionRecord(id);
-
-  if (!deleted) {
-    const error = new Error("Production record could not be deleted.");
-    error.statusCode = 500;
+  if (!record) {
+    const error = new Error("Production record not found.");
+    error.statusCode = 404;
     throw error;
   }
 
   return {
-    message: "Production record deleted successfully."
+    message: "Production record deleted successfully.",
+    data: enrichProductionRecord(record)
   };
 }
 
