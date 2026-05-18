@@ -1,95 +1,96 @@
 const reportService = require("../services/reportService");
 
-async function getSummaryReport(req, res, next) {
+async function getSummaryReport(req, res) {
   try {
-    const report = await reportService.getSummaryReport();
-
-    res.status(200).json({
-      data: report
-    });
+    const result = await reportService.getSummaryReport(req.user.id);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve summary report."
+    });
   }
 }
 
-async function getTopPerformers(req, res, next) {
+async function getTopPerformers(req, res) {
   try {
-    const report = await reportService.getTopPerformers();
-
-    res.status(200).json({
-      data: report
-    });
+    const result = await reportService.getTopPerformers(req.user.id);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve top performers."
+    });
   }
 }
 
-async function getBonusEligibleEmployees(req, res, next) {
+async function getBonusEligibleEmployees(req, res) {
   try {
-    const report = await reportService.getBonusEligibleEmployees();
-
-    res.status(200).json({
-      data: report
-    });
+    const result = await reportService.getBonusEligibleEmployees(req.user.id);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve bonus eligible employees."
+    });
   }
 }
 
-async function getPromotionCandidates(req, res, next) {
+async function getPromotionCandidates(req, res) {
   try {
-    const report = await reportService.getPromotionCandidates();
-
-    res.status(200).json({
-      data: report
-    });
+    const result = await reportService.getPromotionCandidates(req.user.id);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve promotion candidates."
+    });
   }
 }
 
-async function getLowContinuityEmployees(req, res, next) {
+async function getLowContinuityEmployees(req, res) {
   try {
-    const report = await reportService.getLowContinuityEmployees();
-
-    res.status(200).json({
-      data: report
-    });
+    const result = await reportService.getLowContinuityEmployees(req.user.id);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve low continuity employees."
+    });
   }
 }
 
-async function getHrReviewRequiredEmployees(req, res, next) {
+async function getHrReviewRequired(req, res) {
   try {
-    const report = await reportService.getHrReviewRequiredEmployees();
-
-    res.status(200).json({
-      data: report
-    });
+    const result = await reportService.getHrReviewRequired(req.user.id);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve HR review required employees."
+    });
   }
 }
 
-async function getDepartmentPerformanceReport(req, res, next) {
+async function getDepartmentPerformance(req, res) {
   try {
-    const report = await reportService.getDepartmentPerformanceReport();
-
-    res.status(200).json({
-      data: report
-    });
+    const result = await reportService.getDepartmentPerformance(req.user.id);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve department performance report."
+    });
   }
 }
 
 module.exports = {
+  // New names
   getSummaryReport,
   getTopPerformers,
   getBonusEligibleEmployees,
   getPromotionCandidates,
   getLowContinuityEmployees,
-  getHrReviewRequiredEmployees,
-  getDepartmentPerformanceReport
+  getHrReviewRequired,
+  getDepartmentPerformance,
+
+  // Backward-compatible names for existing reportRoutes.js
+  getSummary: getSummaryReport,
+  getBonusEligible: getBonusEligibleEmployees,
+  getLowContinuity: getLowContinuityEmployees,
+  getHRReviewRequired: getHrReviewRequired,
+  getHrReview: getHrReviewRequired
 };

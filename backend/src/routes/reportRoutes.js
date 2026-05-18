@@ -5,17 +5,9 @@ const { authenticateToken } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-router.get(
-  "/summary",
-  authenticateToken,
-  reportController.getSummaryReport
-);
+router.get("/summary", authenticateToken, reportController.getSummaryReport);
 
-router.get(
-  "/top-performers",
-  authenticateToken,
-  reportController.getTopPerformers
-);
+router.get("/top-performers", authenticateToken, reportController.getTopPerformers);
 
 router.get(
   "/bonus-eligible",
@@ -38,13 +30,13 @@ router.get(
 router.get(
   "/hr-review-required",
   authenticateToken,
-  reportController.getHrReviewRequiredEmployees
+  reportController.getHrReviewRequired
 );
 
 router.get(
   "/department-performance",
   authenticateToken,
-  reportController.getDepartmentPerformanceReport
+  reportController.getDepartmentPerformance
 );
 
 module.exports = router;
