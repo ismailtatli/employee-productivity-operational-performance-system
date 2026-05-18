@@ -3,7 +3,8 @@ const API_BASE_URL = "http://localhost:5001/api";
 const state = {
   token: localStorage.getItem("tatlee_token"),
   user: JSON.parse(localStorage.getItem("tatlee_user") || "null"),
-  currentView: "dashboard"
+  currentView: "dashboard",
+  authMode: "login"
 };
 
 const app = document.getElementById("app");
@@ -80,6 +81,8 @@ function showMessage(element, text, type) {
 }
 
 function renderLogin() {
+  const isRegisterMode = state.authMode === "register";
+
   app.innerHTML = `
     <section class="login-page">
       <div class="login-brand">
@@ -89,21 +92,21 @@ function renderLogin() {
             <span>Authorized Factory Management Portal</span>
           </div>
 
-          <h1>Operational performance starts with measurable work.</h1>
+          <h1>Employee productivity, operational control and data ownership in one secure system.</h1>
           <p>
-            TatLee Factory uses this system to manage employees, departments,
-            products, production machines, production records, quality indicators,
-            continuity scores and performance-based recommendations through a secure internal dashboard.
+            TatLee Factory uses this platform to manage user-specific operational data,
+            employee performance, production outputs, quality indicators, continuity scores,
+            performance recommendations and management reports through JWT-based secure access.
           </p>
 
           <div class="login-highlights">
             <div class="highlight-card">
-              <strong>KPI</strong>
-              <span>Production, quality, on-time completion and continuity tracking</span>
+              <strong>JWT</strong>
+              <span>Secure login and registration with token-based access</span>
             </div>
             <div class="highlight-card">
-              <strong>RBAC</strong>
-              <span>Role-based authorized access for factory users</span>
+              <strong>Isolation</strong>
+              <span>Each user can access only their own operational records</span>
             </div>
             <div class="highlight-card">
               <strong>Reports</strong>
@@ -116,41 +119,121 @@ function renderLogin() {
       </div>
 
       <div class="login-panel-wrap">
-        <form class="login-panel" id="loginForm">
-          <h2>Secure access</h2>
+        <form class="login-panel auth-panel" id="${isRegisterMode ? "registerForm" : "loginForm"}">
+          <div class="auth-tabs">
+            <button type="button" class="auth-tab ${!isRegisterMode ? "active" : ""}" id="showLoginBtn">
+              Login
+            </button>
+            <button type="button" class="auth-tab ${isRegisterMode ? "active" : ""}" id="showRegisterBtn">
+              Register
+            </button>
+          </div>
+
+          <h2>${isRegisterMode ? "Create account" : "Secure access"}</h2>
           <p class="subtitle">
-            Sign in to monitor productivity, quality, continuity and operational performance reports.
+            ${
+              isRegisterMode
+                ? "Create a new account. Each user receives a private workspace with isolated records."
+                : "Sign in to monitor productivity, quality, continuity and operational performance reports."
+            }
           </p>
 
-          <div id="loginError" class="login-error"></div>
+          <div id="authError" class="login-error"></div>
+
+          ${
+            isRegisterMode
+              ? `
+                <div class="form-group">
+                  <label>Full Name</label>
+                  <input class="form-control" id="registerFullName" type="text" placeholder="Example: New Test User" />
+                </div>
+              `
+              : ""
+          }
 
           <div class="form-group">
             <label>Email</label>
-            <input class="form-control" id="email" type="email" value="admin@tatleefactory.com" />
+            <input 
+              class="form-control" 
+              id="${isRegisterMode ? "registerEmail" : "email"}" 
+              type="email" 
+              value="${isRegisterMode ? "" : "admin@tatleefactory.com"}"
+              placeholder="example@tatleefactory.com"
+            />
           </div>
 
           <div class="form-group">
             <label>Password</label>
-            <input class="form-control" id="password" type="password" value="TatLee123" />
+            <input 
+              class="form-control" 
+              id="${isRegisterMode ? "registerPassword" : "password"}" 
+              type="password" 
+              value="${isRegisterMode ? "" : "TatLee123"}"
+              placeholder="Minimum 6 characters"
+            />
           </div>
 
-          <button class="primary-btn" type="submit">Login to Dashboard</button>
+          ${
+            isRegisterMode
+              ? `
+                <div class="form-group">
+                  <label>Role</label>
+                  <select class="form-control" id="registerRole">
+                    <option value="Production">Production</option>
+                    <option value="Quality">Quality</option>
+                    <option value="Viewer">Viewer</option>
+                    <option value="Manager">Manager</option>
+                  </select>
+                </div>
+              `
+              : ""
+          }
 
-          <div class="demo-box">
-            <strong>Demo users</strong><br />
-            admin@tatleefactory.com · Admin<br />
-            manager@tatleefactory.com · Manager<br />
-            production@tatleefactory.com · Production<br />
-            quality@tatleefactory.com · Quality<br />
-            viewer@tatleefactory.com · Viewer<br />
-            Password: TatLee123
-          </div>
+          <button class="primary-btn" type="submit">
+            ${isRegisterMode ? "Create Account" : "Login to Dashboard"}
+          </button>
+
+          ${
+            isRegisterMode
+              ? `
+                <div class="demo-box">
+                  <strong>Data isolation note</strong><br />
+                  After registration, this user receives a separate workspace.
+                  Admin data and other users’ records will not be visible to this account.
+                </div>
+              `
+              : `
+                <div class="demo-box">
+                  <strong>Demo users</strong><br />
+                  admin@tatleefactory.com · Admin<br />
+                  manager@tatleefactory.com · Manager<br />
+                  production@tatleefactory.com · Production<br />
+                  quality@tatleefactory.com · Quality<br />
+                  viewer@tatleefactory.com · Viewer<br />
+                  Password: TatLee123
+                </div>
+              `
+          }
         </form>
       </div>
     </section>
   `;
 
-  document.getElementById("loginForm").addEventListener("submit", handleLogin);
+  document.getElementById("showLoginBtn").addEventListener("click", () => {
+    state.authMode = "login";
+    renderLogin();
+  });
+
+  document.getElementById("showRegisterBtn").addEventListener("click", () => {
+    state.authMode = "register";
+    renderLogin();
+  });
+
+  if (isRegisterMode) {
+    document.getElementById("registerForm").addEventListener("submit", handleRegister);
+  } else {
+    document.getElementById("loginForm").addEventListener("submit", handleLogin);
+  }
 }
 
 async function handleLogin(event) {
@@ -158,7 +241,7 @@ async function handleLogin(event) {
 
   const email = document.getElementById("email").value.trim();
   const password = document.getElementById("password").value.trim();
-  const errorBox = document.getElementById("loginError");
+  const errorBox = document.getElementById("authError");
 
   errorBox.style.display = "none";
 
@@ -176,6 +259,56 @@ async function handleLogin(event) {
 
     setAuth(result.token, result.user);
     state.currentView = "dashboard";
+    renderApp();
+  } catch (error) {
+    errorBox.textContent = error.message;
+    errorBox.style.display = "block";
+  }
+}
+
+async function handleRegister(event) {
+  event.preventDefault();
+
+  const fullName = document.getElementById("registerFullName").value.trim();
+  const email = document.getElementById("registerEmail").value.trim();
+  const password = document.getElementById("registerPassword").value.trim();
+  const role = document.getElementById("registerRole").value;
+  const errorBox = document.getElementById("authError");
+
+  errorBox.style.display = "none";
+
+  if (!fullName || fullName.length < 2) {
+    errorBox.textContent = "Full name is required and must be at least 2 characters.";
+    errorBox.style.display = "block";
+    return;
+  }
+
+  if (!email || !email.includes("@")) {
+    errorBox.textContent = "Valid email is required.";
+    errorBox.style.display = "block";
+    return;
+  }
+
+  if (!password || password.length < 6) {
+    errorBox.textContent = "Password must be at least 6 characters.";
+    errorBox.style.display = "block";
+    return;
+  }
+
+  try {
+    const result = await apiRequest("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({
+        fullName,
+        email,
+        password,
+        role
+      })
+    });
+
+    setAuth(result.token, result.user);
+    state.currentView = "dashboard";
+    state.authMode = "login";
     renderApp();
   } catch (error) {
     errorBox.textContent = error.message;

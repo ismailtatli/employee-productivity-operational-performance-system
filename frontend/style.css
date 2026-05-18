@@ -672,3 +672,74 @@ tr:hover td {
     margin-top: 14px;
   }
 }
+
+/* AUTH REGISTER UI */
+
+.auth-panel {
+  position: relative;
+  overflow: hidden;
+}
+
+.auth-panel::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at top right, rgba(37, 99, 235, 0.10), transparent 35%),
+    radial-gradient(circle at bottom left, rgba(16, 185, 129, 0.10), transparent 30%);
+  pointer-events: none;
+}
+
+.auth-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 6px;
+  margin-bottom: 22px;
+  border-radius: 16px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+}
+
+.auth-tab {
+  border: none;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-weight: 800;
+  color: #64748b;
+  background: transparent;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.auth-tab:hover {
+  color: #1d4ed8;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.auth-tab.active {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.25);
+}
+
+.login-panel select.form-control {
+  appearance: none;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #64748b 50%),
+    linear-gradient(135deg, #64748b 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% - 3px),
+    calc(100% - 13px) calc(50% - 3px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.login-error {
+  border-radius: 14px;
+}
