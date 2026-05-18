@@ -5,7 +5,7 @@ async function findUserByEmail(email) {
 
   return database.get(
     "SELECT * FROM users WHERE email = ?",
-    [email]
+    email
   );
 }
 
@@ -14,20 +14,31 @@ async function findUserById(id) {
 
   return database.get(
     "SELECT id, fullName, email, role, status, createdAt FROM users WHERE id = ?",
-    [id]
+    id
   );
 }
 
-async function getAllUsers() {
+async function createUser(userData) {
   const database = await getDatabase();
 
-  return database.all(
-    "SELECT id, fullName, email, role, status, createdAt FROM users ORDER BY id ASC"
+  const result = await database.run(
+    `INSERT INTO users
+    (fullName, email, passwordHash, role, status)
+    VALUES (?, ?, ?, ?, ?)`,
+    [
+      userData.fullName,
+      userData.email,
+      userData.passwordHash,
+      userData.role || "Viewer",
+      userData.status || "Active"
+    ]
   );
+
+  return findUserById(result.lastID);
 }
 
 module.exports = {
   findUserByEmail,
   findUserById,
-  getAllUsers
+  createUser
 };

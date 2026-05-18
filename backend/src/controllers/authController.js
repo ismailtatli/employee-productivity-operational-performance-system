@@ -1,41 +1,40 @@
 const authService = require("../services/authService");
 
-async function login(req, res, next) {
+async function login(req, res) {
   try {
-    const { email, password } = req.body;
-
-    const result = await authService.login(email, password);
-
-    res.status(200).json({
-      message: "Login successful.",
-      token: result.token,
-      user: result.user
-    });
+    const result = await authService.login(req.body);
+    res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Login failed."
+    });
   }
 }
 
-async function me(req, res, next) {
+async function register(req, res) {
   try {
-    const user = await authService.getCurrentUser(req.user.id);
-
-    res.status(200).json({
-      user
-    });
+    const result = await authService.register(req.body);
+    res.status(201).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Registration failed."
+    });
   }
 }
 
-function logout(req, res) {
-  res.status(200).json({
-    message: "Logout successful. Please remove the token on the client side."
-  });
+async function me(req, res) {
+  try {
+    const result = await authService.getCurrentUser(req.user.id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve current user."
+    });
+  }
 }
 
 module.exports = {
   login,
-  me,
-  logout
+  register,
+  me
 };
