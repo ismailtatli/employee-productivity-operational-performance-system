@@ -1,77 +1,92 @@
 const { getDatabase } = require("../config/database");
 
-async function getAllProducts() {
+async function getAllProducts(ownerUserId) {
   const database = await getDatabase();
 
-  return database.all(`
-    SELECT *
-    FROM products
-    ORDER BY id ASC
-  `);
+  return database.all(
+    `SELECT *
+     FROM products
+     WHERE ownerUserId = ?
+     ORDER BY productCode ASC`,
+    ownerUserId
+  );
 }
 
-async function getProductById(id) {
+async function getProductById(id, ownerUserId) {
   const database = await getDatabase();
 
   return database.get(
-    "SELECT * FROM products WHERE id = ?",
-    [id]
+    `SELECT *
+     FROM products
+     WHERE id = ? AND ownerUserId = ?`,
+    [id, ownerUserId]
   );
 }
 
-async function createProduct(product) {
-  const database = await getDatabase();
-
-  const result = await database.run(`
-    INSERT INTO products
-    (productCode, productName, category, standardUnit, targetPerShift, status)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [
-    product.productCode,
-    product.productName,
-    product.category,
-    product.standardUnit,
-    product.targetPerShift,
-    product.status || "Active"
-  ]);
-
-  return getProductById(result.lastID);
-}
-
-async function updateProduct(id, product) {
-  const database = await getDatabase();
-
-  await database.run(`
-    UPDATE products
-    SET productCode = ?,
-        productName = ?,
-        category = ?,
-        standardUnit = ?,
-        targetPerShift = ?,
-        status = ?
-    WHERE id = ?
-  `, [
-    product.productCode,
-    product.productName,
-    product.category,
-    product.standardUnit,
-    product.targetPerShift,
-    product.status,
-    id
-  ]);
-
-  return getProductById(id);
-}
-
-async function deleteProduct(id) {
+async function createProduct(productData, ownerUserId) {
   const database = await getDatabase();
 
   const result = await database.run(
-    "DELETE FROM products WHERE id = ?",
-    [id]
+    `INSERT INTO products
+    (ownerUserId, productCode, productName, category, standardUnit, targetPerShift, status)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ownerUserId,
+      productData.productCode,
+      productData.productName,
+      productData.category,
+      productData.standardUnit,
+      productData.targetPerShift,
+      productData.status || "Active"
+    ]
   );
 
-  return result.changes > 0;
+  return getProductById(result.lastID, ownerUserId);
+}
+
+async function updateProduct(id, productData, ownerUserId) {
+  const database = await getDatabase();
+
+  await database.run(
+    `UPDATE products
+     SET productCode = ?,
+         productName = ?,
+         category = ?,
+         standardUnit = ?,
+         targetPerShift = ?,
+         status = ?
+     WHERE id = ? AND ownerUserId = ?`,
+    [
+      productData.productCode,
+      productData.productName,
+      productData.category,
+      productData.standardUnit,
+      productData.targetPerShift,
+      productData.status || "Active",
+      id,
+      ownerUserId
+    ]
+  );
+
+  return getProductById(id, ownerUserId);
+}
+
+async function deleteProduct(id, ownerUserId) {
+  const database = await getDatabase();
+
+  const product = await getProductById(id, ownerUserId);
+
+  if (!product) {
+    return null;
+  }
+
+  await database.run(
+    `DELETE FROM products
+     WHERE id = ? AND ownerUserId = ?`,
+    [id, ownerUserId]
+  );
+
+  return product;
 }
 
 module.exports = {

@@ -1,84 +1,95 @@
 const { getDatabase } = require("../config/database");
 
-async function getAllMachines() {
+async function getAllMachines(ownerUserId) {
   const database = await getDatabase();
 
-  return database.all(`
-    SELECT 
-      production_machines.*,
-      departments.departmentName
-    FROM production_machines
-    LEFT JOIN departments ON production_machines.departmentId = departments.id
-    ORDER BY production_machines.id ASC
-  `);
+  return database.all(
+    `SELECT production_machines.*, departments.departmentName
+     FROM production_machines
+     LEFT JOIN departments ON production_machines.departmentId = departments.id
+     WHERE production_machines.ownerUserId = ?
+     ORDER BY production_machines.machineCode ASC`,
+    ownerUserId
+  );
 }
 
-async function getMachineById(id) {
+async function getMachineById(id, ownerUserId) {
   const database = await getDatabase();
 
-  return database.get(`
-    SELECT 
-      production_machines.*,
-      departments.departmentName
-    FROM production_machines
-    LEFT JOIN departments ON production_machines.departmentId = departments.id
-    WHERE production_machines.id = ?
-  `, [id]);
+  return database.get(
+    `SELECT production_machines.*, departments.departmentName
+     FROM production_machines
+     LEFT JOIN departments ON production_machines.departmentId = departments.id
+     WHERE production_machines.id = ?
+       AND production_machines.ownerUserId = ?`,
+    [id, ownerUserId]
+  );
 }
 
-async function createMachine(machine) {
-  const database = await getDatabase();
-
-  const result = await database.run(`
-    INSERT INTO production_machines
-    (machineCode, machineName, departmentId, status, capacityPerShift, description)
-    VALUES (?, ?, ?, ?, ?, ?)
-  `, [
-    machine.machineCode,
-    machine.machineName,
-    machine.departmentId,
-    machine.status || "Active",
-    machine.capacityPerShift,
-    machine.description || ""
-  ]);
-
-  return getMachineById(result.lastID);
-}
-
-async function updateMachine(id, machine) {
-  const database = await getDatabase();
-
-  await database.run(`
-    UPDATE production_machines
-    SET machineCode = ?,
-        machineName = ?,
-        departmentId = ?,
-        status = ?,
-        capacityPerShift = ?,
-        description = ?
-    WHERE id = ?
-  `, [
-    machine.machineCode,
-    machine.machineName,
-    machine.departmentId,
-    machine.status,
-    machine.capacityPerShift,
-    machine.description || "",
-    id
-  ]);
-
-  return getMachineById(id);
-}
-
-async function deleteMachine(id) {
+async function createMachine(machineData, ownerUserId) {
   const database = await getDatabase();
 
   const result = await database.run(
-    "DELETE FROM production_machines WHERE id = ?",
-    [id]
+    `INSERT INTO production_machines
+    (ownerUserId, machineCode, machineName, departmentId, status, capacityPerShift, description)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ownerUserId,
+      machineData.machineCode,
+      machineData.machineName,
+      machineData.departmentId,
+      machineData.status || "Active",
+      machineData.capacityPerShift,
+      machineData.description || ""
+    ]
   );
 
-  return result.changes > 0;
+  return getMachineById(result.lastID, ownerUserId);
+}
+
+async function updateMachine(id, machineData, ownerUserId) {
+  const database = await getDatabase();
+
+  await database.run(
+    `UPDATE production_machines
+     SET machineCode = ?,
+         machineName = ?,
+         departmentId = ?,
+         status = ?,
+         capacityPerShift = ?,
+         description = ?
+     WHERE id = ? AND ownerUserId = ?`,
+    [
+      machineData.machineCode,
+      machineData.machineName,
+      machineData.departmentId,
+      machineData.status || "Active",
+      machineData.capacityPerShift,
+      machineData.description || "",
+      id,
+      ownerUserId
+    ]
+  );
+
+  return getMachineById(id, ownerUserId);
+}
+
+async function deleteMachine(id, ownerUserId) {
+  const database = await getDatabase();
+
+  const machine = await getMachineById(id, ownerUserId);
+
+  if (!machine) {
+    return null;
+  }
+
+  await database.run(
+    `DELETE FROM production_machines
+     WHERE id = ? AND ownerUserId = ?`,
+    [id, ownerUserId]
+  );
+
+  return machine;
 }
 
 module.exports = {

@@ -1,12 +1,16 @@
 const productRepository = require("../repositories/productRepository");
 const { validateProductInput } = require("../validators/productValidator");
 
-async function getAllProducts() {
-  return productRepository.getAllProducts();
+async function getAllProducts(ownerUserId) {
+  const products = await productRepository.getAllProducts(ownerUserId);
+
+  return {
+    data: products
+  };
 }
 
-async function getProductById(id) {
-  const product = await productRepository.getProductById(id);
+async function getProductById(id, ownerUserId) {
+  const product = await productRepository.getProductById(id, ownerUserId);
 
   if (!product) {
     const error = new Error("Product not found.");
@@ -14,11 +18,13 @@ async function getProductById(id) {
     throw error;
   }
 
-  return product;
+  return {
+    data: product
+  };
 }
 
-async function createProduct(data) {
-  const validation = validateProductInput(data);
+async function createProduct(productData, ownerUserId) {
+  const validation = validateProductInput(productData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -26,17 +32,16 @@ async function createProduct(data) {
     throw error;
   }
 
-  return productRepository.createProduct({
-    ...data,
-    targetPerShift: Number(data.targetPerShift),
-    status: data.status || "Active"
-  });
+  const product = await productRepository.createProduct(productData, ownerUserId);
+
+  return {
+    message: "Product created successfully.",
+    data: product
+  };
 }
 
-async function updateProduct(id, data) {
-  await getProductById(id);
-
-  const validation = validateProductInput(data);
+async function updateProduct(id, productData, ownerUserId) {
+  const validation = validateProductInput(productData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -44,26 +49,34 @@ async function updateProduct(id, data) {
     throw error;
   }
 
-  return productRepository.updateProduct(id, {
-    ...data,
-    targetPerShift: Number(data.targetPerShift),
-    status: data.status || "Active"
-  });
+  const existingProduct = await productRepository.getProductById(id, ownerUserId);
+
+  if (!existingProduct) {
+    const error = new Error("Product not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const product = await productRepository.updateProduct(id, productData, ownerUserId);
+
+  return {
+    message: "Product updated successfully.",
+    data: product
+  };
 }
 
-async function deleteProduct(id) {
-  await getProductById(id);
+async function deleteProduct(id, ownerUserId) {
+  const product = await productRepository.deleteProduct(id, ownerUserId);
 
-  const deleted = await productRepository.deleteProduct(id);
-
-  if (!deleted) {
-    const error = new Error("Product could not be deleted.");
-    error.statusCode = 500;
+  if (!product) {
+    const error = new Error("Product not found.");
+    error.statusCode = 404;
     throw error;
   }
 
   return {
-    message: "Product deleted successfully."
+    message: "Product deleted successfully.",
+    data: product
   };
 }
 

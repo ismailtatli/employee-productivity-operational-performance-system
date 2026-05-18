@@ -1,13 +1,17 @@
 const machineRepository = require("../repositories/machineRepository");
 const departmentRepository = require("../repositories/departmentRepository");
-const { validateMachineInput } = require("../validators/machineValidator");
+const { validateMachine } = require("../validators/machineValidator");
 
-async function getAllMachines() {
-  return machineRepository.getAllMachines();
+async function getAllMachines(ownerUserId) {
+  const machines = await machineRepository.getAllMachines(ownerUserId);
+
+  return {
+    data: machines
+  };
 }
 
-async function getMachineById(id) {
-  const machine = await machineRepository.getMachineById(id);
+async function getMachineById(id, ownerUserId) {
+  const machine = await machineRepository.getMachineById(id, ownerUserId);
 
   if (!machine) {
     const error = new Error("Production machine not found.");
@@ -15,11 +19,13 @@ async function getMachineById(id) {
     throw error;
   }
 
-  return machine;
+  return {
+    data: machine
+  };
 }
 
-async function createMachine(data) {
-  const validation = validateMachineInput(data);
+async function createMachine(machineData, ownerUserId) {
+  const validation = validateMachine(machineData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -27,26 +33,24 @@ async function createMachine(data) {
     throw error;
   }
 
-  const department = await departmentRepository.getDepartmentById(data.departmentId);
+  const department = await departmentRepository.getDepartmentById(machineData.departmentId, ownerUserId);
 
   if (!department) {
-    const error = new Error("Department not found.");
+    const error = new Error("Department not found for this user.");
     error.statusCode = 404;
     throw error;
   }
 
-  return machineRepository.createMachine({
-    ...data,
-    departmentId: Number(data.departmentId),
-    capacityPerShift: Number(data.capacityPerShift),
-    status: data.status || "Active"
-  });
+  const machine = await machineRepository.createMachine(machineData, ownerUserId);
+
+  return {
+    message: "Production machine created successfully.",
+    data: machine
+  };
 }
 
-async function updateMachine(id, data) {
-  await getMachineById(id);
-
-  const validation = validateMachineInput(data);
+async function updateMachine(id, machineData, ownerUserId) {
+  const validation = validateMachine(machineData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -54,35 +58,42 @@ async function updateMachine(id, data) {
     throw error;
   }
 
-  const department = await departmentRepository.getDepartmentById(data.departmentId);
+  const existingMachine = await machineRepository.getMachineById(id, ownerUserId);
 
-  if (!department) {
-    const error = new Error("Department not found.");
+  if (!existingMachine) {
+    const error = new Error("Production machine not found.");
     error.statusCode = 404;
     throw error;
   }
 
-  return machineRepository.updateMachine(id, {
-    ...data,
-    departmentId: Number(data.departmentId),
-    capacityPerShift: Number(data.capacityPerShift),
-    status: data.status || "Active"
-  });
+  const department = await departmentRepository.getDepartmentById(machineData.departmentId, ownerUserId);
+
+  if (!department) {
+    const error = new Error("Department not found for this user.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const machine = await machineRepository.updateMachine(id, machineData, ownerUserId);
+
+  return {
+    message: "Production machine updated successfully.",
+    data: machine
+  };
 }
 
-async function deleteMachine(id) {
-  await getMachineById(id);
+async function deleteMachine(id, ownerUserId) {
+  const machine = await machineRepository.deleteMachine(id, ownerUserId);
 
-  const deleted = await machineRepository.deleteMachine(id);
-
-  if (!deleted) {
-    const error = new Error("Production machine could not be deleted.");
-    error.statusCode = 500;
+  if (!machine) {
+    const error = new Error("Production machine not found.");
+    error.statusCode = 404;
     throw error;
   }
 
   return {
-    message: "Production machine deleted successfully."
+    message: "Production machine deleted successfully.",
+    data: machine
   };
 }
 
