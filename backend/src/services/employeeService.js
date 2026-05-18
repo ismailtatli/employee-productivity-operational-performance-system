@@ -1,12 +1,17 @@
 const employeeRepository = require("../repositories/employeeRepository");
+const departmentRepository = require("../repositories/departmentRepository");
 const { validateEmployeeInput } = require("../validators/employeeValidator");
 
-async function getAllEmployees() {
-  return employeeRepository.getAllEmployees();
+async function getAllEmployees(ownerUserId) {
+  const employees = await employeeRepository.getAllEmployees(ownerUserId);
+
+  return {
+    data: employees
+  };
 }
 
-async function getEmployeeById(id) {
-  const employee = await employeeRepository.getEmployeeById(id);
+async function getEmployeeById(id, ownerUserId) {
+  const employee = await employeeRepository.getEmployeeById(id, ownerUserId);
 
   if (!employee) {
     const error = new Error("Employee not found.");
@@ -14,31 +19,43 @@ async function getEmployeeById(id) {
     throw error;
   }
 
-  return employee;
+  return {
+    data: employee
+  };
 }
 
-async function searchEmployees(query) {
-  if (!query || query.trim() === "") {
+async function getEmployeesByDepartment(departmentId, ownerUserId) {
+  const department = await departmentRepository.getDepartmentById(departmentId, ownerUserId);
+
+  if (!department) {
+    const error = new Error("Department not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const employees = await employeeRepository.getEmployeesByDepartment(departmentId, ownerUserId);
+
+  return {
+    data: employees
+  };
+}
+
+async function searchEmployees(query, ownerUserId) {
+  if (!query || query.trim().length < 1) {
     const error = new Error("Search query is required.");
     error.statusCode = 400;
     throw error;
   }
 
-  return employeeRepository.searchEmployees(query);
+  const employees = await employeeRepository.searchEmployees(query.trim(), ownerUserId);
+
+  return {
+    data: employees
+  };
 }
 
-async function getEmployeesByDepartment(departmentId) {
-  if (!departmentId || Number(departmentId) <= 0) {
-    const error = new Error("Valid department id is required.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  return employeeRepository.getEmployeesByDepartment(departmentId);
-}
-
-async function createEmployee(data) {
-  const validation = validateEmployeeInput(data);
+async function createEmployee(employeeData, ownerUserId) {
+  const validation = validateEmployeeInput(employeeData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -46,17 +63,24 @@ async function createEmployee(data) {
     throw error;
   }
 
-  return employeeRepository.createEmployee({
-    ...data,
-    departmentId: Number(data.departmentId),
-    status: data.status || "Active"
-  });
+  const department = await departmentRepository.getDepartmentById(employeeData.departmentId, ownerUserId);
+
+  if (!department) {
+    const error = new Error("Department not found for this user.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const employee = await employeeRepository.createEmployee(employeeData, ownerUserId);
+
+  return {
+    message: "Employee created successfully.",
+    data: employee
+  };
 }
 
-async function updateEmployee(id, data) {
-  await getEmployeeById(id);
-
-  const validation = validateEmployeeInput(data);
+async function updateEmployee(id, employeeData, ownerUserId) {
+  const validation = validateEmployeeInput(employeeData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -64,34 +88,50 @@ async function updateEmployee(id, data) {
     throw error;
   }
 
-  return employeeRepository.updateEmployee(id, {
-    ...data,
-    departmentId: Number(data.departmentId),
-    status: data.status || "Active"
-  });
+  const existingEmployee = await employeeRepository.getEmployeeById(id, ownerUserId);
+
+  if (!existingEmployee) {
+    const error = new Error("Employee not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const department = await departmentRepository.getDepartmentById(employeeData.departmentId, ownerUserId);
+
+  if (!department) {
+    const error = new Error("Department not found for this user.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const employee = await employeeRepository.updateEmployee(id, employeeData, ownerUserId);
+
+  return {
+    message: "Employee updated successfully.",
+    data: employee
+  };
 }
 
-async function deleteEmployee(id) {
-  await getEmployeeById(id);
+async function deleteEmployee(id, ownerUserId) {
+  const employee = await employeeRepository.deleteEmployee(id, ownerUserId);
 
-  const deleted = await employeeRepository.deleteEmployee(id);
-
-  if (!deleted) {
-    const error = new Error("Employee could not be deleted.");
-    error.statusCode = 500;
+  if (!employee) {
+    const error = new Error("Employee not found.");
+    error.statusCode = 404;
     throw error;
   }
 
   return {
-    message: "Employee deleted successfully."
+    message: "Employee deleted successfully.",
+    data: employee
   };
 }
 
 module.exports = {
   getAllEmployees,
   getEmployeeById,
-  searchEmployees,
   getEmployeesByDepartment,
+  searchEmployees,
   createEmployee,
   updateEmployee,
   deleteEmployee

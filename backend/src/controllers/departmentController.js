@@ -1,62 +1,57 @@
 const departmentService = require("../services/departmentService");
 
-async function getAllDepartments(req, res, next) {
+async function getAllDepartments(req, res) {
   try {
-    const departments = await departmentService.getAllDepartments();
-
-    res.status(200).json({
-      data: departments
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function getDepartmentById(req, res, next) {
-  try {
-    const department = await departmentService.getDepartmentById(req.params.id);
-
-    res.status(200).json({
-      data: department
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function createDepartment(req, res, next) {
-  try {
-    const department = await departmentService.createDepartment(req.body);
-
-    res.status(201).json({
-      message: "Department created successfully.",
-      data: department
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function updateDepartment(req, res, next) {
-  try {
-    const department = await departmentService.updateDepartment(req.params.id, req.body);
-
-    res.status(200).json({
-      message: "Department updated successfully.",
-      data: department
-    });
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function deleteDepartment(req, res, next) {
-  try {
-    const result = await departmentService.deleteDepartment(req.params.id);
-
+    const result = await departmentService.getAllDepartments(req.user.id);
     res.status(200).json(result);
   } catch (error) {
-    next(error);
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve departments."
+    });
+  }
+}
+
+async function getDepartmentById(req, res) {
+  try {
+    const result = await departmentService.getDepartmentById(req.params.id, req.user.id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not retrieve department."
+    });
+  }
+}
+
+async function createDepartment(req, res) {
+  try {
+    const result = await departmentService.createDepartment(req.body, req.user.id);
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not create department."
+    });
+  }
+}
+
+async function updateDepartment(req, res) {
+  try {
+    const result = await departmentService.updateDepartment(req.params.id, req.body, req.user.id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not update department."
+    });
+  }
+}
+
+async function deleteDepartment(req, res) {
+  try {
+    const result = await departmentService.deleteDepartment(req.params.id, req.user.id);
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Could not delete department."
+    });
   }
 }
 

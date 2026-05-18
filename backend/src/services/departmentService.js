@@ -1,12 +1,16 @@
 const departmentRepository = require("../repositories/departmentRepository");
 const { validateDepartmentInput } = require("../validators/departmentValidator");
 
-async function getAllDepartments() {
-  return departmentRepository.getAllDepartments();
+async function getAllDepartments(ownerUserId) {
+  const departments = await departmentRepository.getAllDepartments(ownerUserId);
+
+  return {
+    data: departments
+  };
 }
 
-async function getDepartmentById(id) {
-  const department = await departmentRepository.getDepartmentById(id);
+async function getDepartmentById(id, ownerUserId) {
+  const department = await departmentRepository.getDepartmentById(id, ownerUserId);
 
   if (!department) {
     const error = new Error("Department not found.");
@@ -14,11 +18,13 @@ async function getDepartmentById(id) {
     throw error;
   }
 
-  return department;
+  return {
+    data: department
+  };
 }
 
-async function createDepartment(data) {
-  const validation = validateDepartmentInput(data);
+async function createDepartment(departmentData, ownerUserId) {
+  const validation = validateDepartmentInput(departmentData);
 
   if (!validation.isValid) {
     const error = new Error(validation.errors.join(" "));
@@ -26,42 +32,59 @@ async function createDepartment(data) {
     throw error;
   }
 
-  return departmentRepository.createDepartment(data);
-}
-
-async function updateDepartment(id, data) {
-  await getDepartmentById(id);
-
-  const validation = validateDepartmentInput(data);
-
-  if (!validation.isValid) {
-    const error = new Error(validation.errors.join(" "));
-    error.statusCode = 400;
-    throw error;
-  }
-
-  return departmentRepository.updateDepartment(id, data);
-}
-
-async function deleteDepartment(id) {
-  const department = await getDepartmentById(id);
-
-  if (Number(department.employeeCount) > 0) {
-    const error = new Error("Department cannot be deleted because it has assigned employees.");
-    error.statusCode = 400;
-    throw error;
-  }
-
-  const deleted = await departmentRepository.deleteDepartment(id);
-
-  if (!deleted) {
-    const error = new Error("Department could not be deleted.");
-    error.statusCode = 500;
-    throw error;
-  }
+  const department = await departmentRepository.createDepartment(departmentData, ownerUserId);
 
   return {
-    message: "Department deleted successfully."
+    message: "Department created successfully.",
+    data: department
+  };
+}
+
+async function updateDepartment(id, departmentData, ownerUserId) {
+  const validation = validateDepartmentInput(departmentData);
+
+  if (!validation.isValid) {
+    const error = new Error(validation.errors.join(" "));
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const existingDepartment = await departmentRepository.getDepartmentById(id, ownerUserId);
+
+  if (!existingDepartment) {
+    const error = new Error("Department not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const department = await departmentRepository.updateDepartment(id, departmentData, ownerUserId);
+
+  return {
+    message: "Department updated successfully.",
+    data: department
+  };
+}
+
+async function deleteDepartment(id, ownerUserId) {
+  const existingDepartment = await departmentRepository.getDepartmentById(id, ownerUserId);
+
+  if (!existingDepartment) {
+    const error = new Error("Department not found.");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  if (Number(existingDepartment.employeeCount) > 0) {
+    const error = new Error("Departments with assigned employees cannot be deleted.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const department = await departmentRepository.deleteDepartment(id, ownerUserId);
+
+  return {
+    message: "Department deleted successfully.",
+    data: department
   };
 }
 

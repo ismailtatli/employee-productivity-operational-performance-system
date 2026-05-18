@@ -1,126 +1,147 @@
 const { getDatabase } = require("../config/database");
 
-async function getAllEmployees() {
+async function getAllEmployees(ownerUserId) {
   const database = await getDatabase();
 
-  return database.all(`
-    SELECT 
-      employees.*,
-      departments.departmentName
-    FROM employees
-    LEFT JOIN departments ON employees.departmentId = departments.id
-    ORDER BY employees.id ASC
-  `);
+  return database.all(
+    `SELECT employees.*, departments.departmentName
+     FROM employees
+     LEFT JOIN departments ON employees.departmentId = departments.id
+     WHERE employees.ownerUserId = ?
+     ORDER BY employees.employeeCode ASC`,
+    ownerUserId
+  );
 }
 
-async function getEmployeeById(id) {
+async function getEmployeeById(id, ownerUserId) {
   const database = await getDatabase();
 
-  return database.get(`
-    SELECT 
-      employees.*,
-      departments.departmentName
-    FROM employees
-    LEFT JOIN departments ON employees.departmentId = departments.id
-    WHERE employees.id = ?
-  `, [id]);
+  return database.get(
+    `SELECT employees.*, departments.departmentName
+     FROM employees
+     LEFT JOIN departments ON employees.departmentId = departments.id
+     WHERE employees.id = ?
+       AND employees.ownerUserId = ?`,
+    [id, ownerUserId]
+  );
 }
 
-async function searchEmployees(query) {
-  const database = await getDatabase();
-  const searchTerm = `%${query}%`;
-
-  return database.all(`
-    SELECT 
-      employees.*,
-      departments.departmentName
-    FROM employees
-    LEFT JOIN departments ON employees.departmentId = departments.id
-    WHERE employees.fullName LIKE ?
-       OR employees.employeeCode LIKE ?
-       OR employees.email LIKE ?
-       OR employees.position LIKE ?
-    ORDER BY employees.id ASC
-  `, [searchTerm, searchTerm, searchTerm, searchTerm]);
-}
-
-async function getEmployeesByDepartment(departmentId) {
+async function getEmployeesByDepartment(departmentId, ownerUserId) {
   const database = await getDatabase();
 
-  return database.all(`
-    SELECT 
-      employees.*,
-      departments.departmentName
-    FROM employees
-    LEFT JOIN departments ON employees.departmentId = departments.id
-    WHERE employees.departmentId = ?
-    ORDER BY employees.id ASC
-  `, [departmentId]);
+  return database.all(
+    `SELECT employees.*, departments.departmentName
+     FROM employees
+     LEFT JOIN departments ON employees.departmentId = departments.id
+     WHERE employees.departmentId = ?
+       AND employees.ownerUserId = ?
+     ORDER BY employees.employeeCode ASC`,
+    [departmentId, ownerUserId]
+  );
 }
 
-async function createEmployee(employee) {
+async function searchEmployees(query, ownerUserId) {
   const database = await getDatabase();
+  const searchQuery = `%${query}%`;
 
-  const result = await database.run(`
-    INSERT INTO employees 
-    (fullName, employeeCode, email, position, departmentId, hireDate, status)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `, [
-    employee.fullName,
-    employee.employeeCode,
-    employee.email,
-    employee.position,
-    employee.departmentId,
-    employee.hireDate,
-    employee.status || "Active"
-  ]);
-
-  return getEmployeeById(result.lastID);
+  return database.all(
+    `SELECT employees.*, departments.departmentName
+     FROM employees
+     LEFT JOIN departments ON employees.departmentId = departments.id
+     WHERE employees.ownerUserId = ?
+       AND (
+         employees.fullName LIKE ?
+         OR employees.employeeCode LIKE ?
+         OR employees.email LIKE ?
+         OR employees.position LIKE ?
+         OR departments.departmentName LIKE ?
+       )
+     ORDER BY employees.employeeCode ASC`,
+    [
+      ownerUserId,
+      searchQuery,
+      searchQuery,
+      searchQuery,
+      searchQuery,
+      searchQuery
+    ]
+  );
 }
 
-async function updateEmployee(id, employee) {
-  const database = await getDatabase();
-
-  await database.run(`
-    UPDATE employees
-    SET fullName = ?,
-        employeeCode = ?,
-        email = ?,
-        position = ?,
-        departmentId = ?,
-        hireDate = ?,
-        status = ?
-    WHERE id = ?
-  `, [
-    employee.fullName,
-    employee.employeeCode,
-    employee.email,
-    employee.position,
-    employee.departmentId,
-    employee.hireDate,
-    employee.status,
-    id
-  ]);
-
-  return getEmployeeById(id);
-}
-
-async function deleteEmployee(id) {
+async function createEmployee(employeeData, ownerUserId) {
   const database = await getDatabase();
 
   const result = await database.run(
-    "DELETE FROM employees WHERE id = ?",
-    [id]
+    `INSERT INTO employees
+     (ownerUserId, fullName, employeeCode, email, position, departmentId, hireDate, status)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [
+      ownerUserId,
+      employeeData.fullName,
+      employeeData.employeeCode,
+      employeeData.email,
+      employeeData.position,
+      employeeData.departmentId,
+      employeeData.hireDate,
+      employeeData.status || "Active"
+    ]
   );
 
-  return result.changes > 0;
+  return getEmployeeById(result.lastID, ownerUserId);
+}
+
+async function updateEmployee(id, employeeData, ownerUserId) {
+  const database = await getDatabase();
+
+  await database.run(
+    `UPDATE employees
+     SET fullName = ?,
+         employeeCode = ?,
+         email = ?,
+         position = ?,
+         departmentId = ?,
+         hireDate = ?,
+         status = ?
+     WHERE id = ? AND ownerUserId = ?`,
+    [
+      employeeData.fullName,
+      employeeData.employeeCode,
+      employeeData.email,
+      employeeData.position,
+      employeeData.departmentId,
+      employeeData.hireDate,
+      employeeData.status || "Active",
+      id,
+      ownerUserId
+    ]
+  );
+
+  return getEmployeeById(id, ownerUserId);
+}
+
+async function deleteEmployee(id, ownerUserId) {
+  const database = await getDatabase();
+
+  const employee = await getEmployeeById(id, ownerUserId);
+
+  if (!employee) {
+    return null;
+  }
+
+  await database.run(
+    `DELETE FROM employees
+     WHERE id = ? AND ownerUserId = ?`,
+    [id, ownerUserId]
+  );
+
+  return employee;
 }
 
 module.exports = {
   getAllEmployees,
   getEmployeeById,
-  searchEmployees,
   getEmployeesByDepartment,
+  searchEmployees,
   createEmployee,
   updateEmployee,
   deleteEmployee
