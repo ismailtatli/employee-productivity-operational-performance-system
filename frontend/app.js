@@ -92,8 +92,8 @@ function renderLogin() {
           <h1>Operational performance starts with measurable work.</h1>
           <p>
             TatLee Factory uses this system to manage employees, departments,
-            production records, quality indicators, continuity scores and
-            performance-based recommendations through a secure internal dashboard.
+            products, production machines, production records, quality indicators,
+            continuity scores and performance-based recommendations through a secure internal dashboard.
           </p>
 
           <div class="login-highlights">
@@ -204,6 +204,8 @@ function renderApp() {
           ${navButton("dashboard", "Dashboard")}
           ${navButton("employees", "Employees")}
           ${navButton("departments", "Departments")}
+          ${navButton("products", "Products")}
+          ${navButton("machines", "Machines")}
           ${navButton("production", "Production Records")}
           ${navButton("reports", "Reports")}
         </nav>
@@ -257,6 +259,8 @@ function renderCurrentView() {
   if (state.currentView === "dashboard") renderDashboard();
   if (state.currentView === "employees") renderEmployees();
   if (state.currentView === "departments") renderDepartments();
+  if (state.currentView === "products") renderProducts();
+  if (state.currentView === "machines") renderMachines();
   if (state.currentView === "production") renderProductionRecords();
   if (state.currentView === "reports") renderReports();
 }
@@ -287,6 +291,8 @@ function metricCard(label, value) {
   `;
 }
 
+/* DASHBOARD */
+
 async function renderDashboard() {
   const view = document.getElementById("view");
 
@@ -316,12 +322,12 @@ async function renderDashboard() {
       <section class="card-grid">
         ${metricCard("Total Employees", summary.totalEmployees)}
         ${metricCard("Active Employees", summary.activeEmployees)}
+        ${metricCard("Production Records", summary.totalProductionRecords)}
+        ${metricCard("Actual Production", summary.totalActualProduction)}
         ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
         ${metricCard("Avg. Quality", summary.averageQualityScore)}
         ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
         ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
-        ${metricCard("Promotion Candidates", summary.promotionCandidateCount)}
-        ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
       </section>
 
       <section class="content-grid">
@@ -409,6 +415,8 @@ function renderDepartmentTable(departments) {
     </div>
   `;
 }
+
+/* EMPLOYEES */
 
 function canManageEmployees() {
   return ["Admin", "Manager"].includes(state.user.role);
@@ -750,6 +758,8 @@ async function deleteEmployee(id) {
   }
 }
 
+/* DEPARTMENTS */
+
 function canManageDepartments() {
   return ["Admin", "Manager"].includes(state.user.role);
 }
@@ -1008,6 +1018,664 @@ async function deleteDepartment(id) {
     showMessage(message, error.message, "error");
   }
 }
+
+/* PRODUCTS */
+
+function canManageProducts() {
+  return ["Admin", "Manager", "Production"].includes(state.user.role);
+}
+
+function canDeleteProducts() {
+  return state.user.role === "Admin";
+}
+
+async function renderProducts() {
+  const view = document.getElementById("view");
+
+  view.innerHTML = `
+    ${renderTopbar(
+      "Products",
+      "Manage TatLee Factory product catalog, standard units and target production levels."
+    )}
+
+    <div id="productMessage" class="message"></div>
+
+    ${
+      canManageProducts()
+        ? renderProductForm()
+        : `<div class="panel"><p class="loading">You have view-only access for product records.</p></div>`
+    }
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Product Catalog</h3>
+      </div>
+
+      <div class="toolbar">
+        <input class="form-control" id="productSearch" placeholder="Search by product code, name or category..." />
+        <select class="form-control" id="productStatusFilter">
+          <option value="">All statuses</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+        <button class="secondary-btn" id="refreshProductsBtn">Refresh</button>
+      </div>
+
+      <div id="productsTable" class="loading">Loading products...</div>
+    </div>
+  `;
+
+  await loadProducts();
+
+  document.getElementById("productSearch").addEventListener("input", () => loadProducts());
+  document.getElementById("productStatusFilter").addEventListener("change", () => loadProducts());
+  document.getElementById("refreshProductsBtn").addEventListener("click", () => loadProducts());
+
+  const form = document.getElementById("productForm");
+  if (form) {
+    form.addEventListener("submit", handleProductSubmit);
+    document.getElementById("productCancelBtn").addEventListener("click", resetProductForm);
+  }
+}
+
+function renderProductForm() {
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <h3 id="productFormTitle">Add Product</h3>
+      </div>
+
+      <form id="productForm">
+        <input type="hidden" id="productId" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Product Code</label>
+            <input class="form-control" id="productCode" placeholder="Example: PRD-100" />
+          </div>
+
+          <div class="form-group">
+            <label>Product Name</label>
+            <input class="form-control" id="productName" placeholder="Example: Chocolate Wafer Box" />
+          </div>
+
+          <div class="form-group">
+            <label>Category</label>
+            <input class="form-control" id="productCategory" placeholder="Example: Food Packaging" />
+          </div>
+
+          <div class="form-group">
+            <label>Standard Unit</label>
+            <input class="form-control" id="productStandardUnit" placeholder="Example: box, pack, bottle" />
+          </div>
+
+          <div class="form-group">
+            <label>Target Per Shift</label>
+            <input class="form-control" id="productTargetPerShift" type="number" min="1" placeholder="Example: 500" />
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" id="productStatus">
+              <option value="Active">Active</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary-btn" style="width:auto;" type="submit">Save Product</button>
+          <button class="secondary-btn" type="button" id="productCancelBtn">Clear</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function loadProducts() {
+  const table = document.getElementById("productsTable");
+  const searchValue = document.getElementById("productSearch")?.value.trim().toLowerCase() || "";
+  const statusValue = document.getElementById("productStatusFilter")?.value || "";
+
+  table.innerHTML = `<div class="loading">Loading products...</div>`;
+
+  try {
+    const response = await apiRequest("/products");
+    let products = response.data;
+
+    if (searchValue) {
+      products = products.filter((product) => {
+        return (
+          product.productCode.toLowerCase().includes(searchValue) ||
+          product.productName.toLowerCase().includes(searchValue) ||
+          product.category.toLowerCase().includes(searchValue) ||
+          product.standardUnit.toLowerCase().includes(searchValue)
+        );
+      });
+    }
+
+    if (statusValue) {
+      products = products.filter((product) => product.status === statusValue);
+    }
+
+    table.innerHTML = renderProductsTable(products);
+    bindProductActions(products);
+  } catch (error) {
+    table.innerHTML = `<div class="message error" style="display:block;">${error.message}</div>`;
+  }
+}
+
+function renderProductsTable(products) {
+  if (!products.length) {
+    return `<p class="loading">No products found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Product Name</th>
+            <th>Category</th>
+            <th>Unit</th>
+            <th>Target / Shift</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${products.map((product) => `
+            <tr>
+              <td><strong>${product.productCode}</strong></td>
+              <td>${product.productName}</td>
+              <td>${product.category}</td>
+              <td>${product.standardUnit}</td>
+              <td><strong>${product.targetPerShift}</strong></td>
+              <td>
+                <span class="badge ${product.status === "Active" ? "badge-success" : "badge-warning"}">
+                  ${product.status}
+                </span>
+              </td>
+              <td>
+                <div class="actions">
+                  ${canManageProducts() ? `<button class="edit-btn" data-edit-product="${product.id}">Edit</button>` : ""}
+                  ${canDeleteProducts() ? `<button class="danger-btn" data-delete-product="${product.id}">Delete</button>` : ""}
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindProductActions(products) {
+  document.querySelectorAll("[data-edit-product]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const product = products.find((item) => Number(item.id) === Number(button.dataset.editProduct));
+      fillProductForm(product);
+    });
+  });
+
+  document.querySelectorAll("[data-delete-product]").forEach((button) => {
+    button.addEventListener("click", () => deleteProduct(button.dataset.deleteProduct));
+  });
+}
+
+function fillProductForm(product) {
+  document.getElementById("productFormTitle").textContent = "Edit Product";
+  document.getElementById("productId").value = product.id;
+  document.getElementById("productCode").value = product.productCode;
+  document.getElementById("productName").value = product.productName;
+  document.getElementById("productCategory").value = product.category;
+  document.getElementById("productStandardUnit").value = product.standardUnit;
+  document.getElementById("productTargetPerShift").value = product.targetPerShift;
+  document.getElementById("productStatus").value = product.status;
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetProductForm() {
+  const form = document.getElementById("productForm");
+  if (!form) return;
+
+  form.reset();
+  document.getElementById("productId").value = "";
+  document.getElementById("productFormTitle").textContent = "Add Product";
+  document.getElementById("productStatus").value = "Active";
+}
+
+function getProductFormData() {
+  return {
+    productCode: document.getElementById("productCode").value.trim(),
+    productName: document.getElementById("productName").value.trim(),
+    category: document.getElementById("productCategory").value.trim(),
+    standardUnit: document.getElementById("productStandardUnit").value.trim(),
+    targetPerShift: Number(document.getElementById("productTargetPerShift").value),
+    status: document.getElementById("productStatus").value
+  };
+}
+
+function validateProductForm(data) {
+  if (!data.productCode) return "Product code is required.";
+  if (!data.productName) return "Product name is required.";
+  if (!data.category) return "Category is required.";
+  if (!data.standardUnit) return "Standard unit is required.";
+  if (data.targetPerShift <= 0) return "Target per shift must be greater than zero.";
+  return null;
+}
+
+async function handleProductSubmit(event) {
+  event.preventDefault();
+
+  const message = document.getElementById("productMessage");
+  const productId = document.getElementById("productId").value;
+  const formData = getProductFormData();
+  const validationError = validateProductForm(formData);
+
+  message.style.display = "none";
+
+  if (validationError) {
+    showMessage(message, validationError, "error");
+    return;
+  }
+
+  try {
+    if (productId) {
+      await apiRequest(`/products/${productId}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Product updated successfully.", "success");
+    } else {
+      await apiRequest("/products", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Product created successfully.", "success");
+    }
+
+    resetProductForm();
+    await loadProducts();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+async function deleteProduct(id) {
+  const confirmed = confirm(
+    "Are you sure you want to delete this product? Products used in production records may affect operational history."
+  );
+
+  if (!confirmed) return;
+
+  const message = document.getElementById("productMessage");
+
+  try {
+    await apiRequest(`/products/${id}`, {
+      method: "DELETE"
+    });
+
+    showMessage(message, "Product deleted successfully.", "success");
+    await loadProducts();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+/* MACHINES */
+
+function canManageMachines() {
+  return ["Admin", "Manager", "Production"].includes(state.user.role);
+}
+
+function canDeleteMachines() {
+  return state.user.role === "Admin";
+}
+
+async function renderMachines() {
+  const view = document.getElementById("view");
+
+  view.innerHTML = `
+    ${renderTopbar(
+      "Machines",
+      "Manage production machines, department assignments, status and shift capacity."
+    )}
+
+    <div id="machineMessage" class="message"></div>
+
+    ${
+      canManageMachines()
+        ? renderMachineForm()
+        : `<div class="panel"><p class="loading">You have view-only access for production machines.</p></div>`
+    }
+
+    <div class="panel">
+      <div class="panel-header">
+        <h3>Production Machine Directory</h3>
+      </div>
+
+      <div class="toolbar">
+        <input class="form-control" id="machineSearch" placeholder="Search by code, name, department or status..." />
+        <select class="form-control" id="machineDepartmentFilter">
+          <option value="">All departments</option>
+        </select>
+        <select class="form-control" id="machineStatusFilter">
+          <option value="">All statuses</option>
+          <option value="Active">Active</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+        <button class="secondary-btn" id="refreshMachinesBtn">Refresh</button>
+      </div>
+
+      <div id="machinesTable" class="loading">Loading machines...</div>
+    </div>
+  `;
+
+  await loadMachineDepartmentOptions();
+  await loadMachines();
+
+  document.getElementById("machineSearch").addEventListener("input", () => loadMachines());
+  document.getElementById("machineDepartmentFilter").addEventListener("change", () => loadMachines());
+  document.getElementById("machineStatusFilter").addEventListener("change", () => loadMachines());
+  document.getElementById("refreshMachinesBtn").addEventListener("click", () => loadMachines());
+
+  const form = document.getElementById("machineForm");
+  if (form) {
+    form.addEventListener("submit", handleMachineSubmit);
+    document.getElementById("machineCancelBtn").addEventListener("click", resetMachineForm);
+  }
+}
+
+function renderMachineForm() {
+  return `
+    <div class="panel">
+      <div class="panel-header">
+        <h3 id="machineFormTitle">Add Production Machine</h3>
+      </div>
+
+      <form id="machineForm">
+        <input type="hidden" id="machineId" />
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Machine Code</label>
+            <input class="form-control" id="machineCode" placeholder="Example: MCH-100" />
+          </div>
+
+          <div class="form-group">
+            <label>Machine Name</label>
+            <input class="form-control" id="machineName" placeholder="Example: Filling Line C" />
+          </div>
+
+          <div class="form-group">
+            <label>Department</label>
+            <select class="form-control" id="machineDepartmentId"></select>
+          </div>
+
+          <div class="form-group">
+            <label>Status</label>
+            <select class="form-control" id="machineStatus">
+              <option value="Active">Active</option>
+              <option value="Maintenance">Maintenance</option>
+              <option value="Inactive">Inactive</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label>Capacity Per Shift</label>
+            <input class="form-control" id="machineCapacityPerShift" type="number" min="1" placeholder="Example: 800" />
+          </div>
+
+          <div class="form-group full">
+            <label>Description</label>
+            <textarea class="form-control" id="machineDescription" rows="3" placeholder="Describe machine function..."></textarea>
+          </div>
+        </div>
+
+        <div class="actions">
+          <button class="primary-btn" style="width:auto;" type="submit">Save Machine</button>
+          <button class="secondary-btn" type="button" id="machineCancelBtn">Clear</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+async function loadMachineDepartmentOptions() {
+  const response = await apiRequest("/departments");
+  const departments = response.data;
+
+  const filterSelect = document.getElementById("machineDepartmentFilter");
+  const formSelect = document.getElementById("machineDepartmentId");
+
+  if (filterSelect) {
+    filterSelect.innerHTML =
+      `<option value="">All departments</option>` +
+      departments.map((department) => `
+        <option value="${department.id}">${department.departmentName}</option>
+      `).join("");
+  }
+
+  if (formSelect) {
+    formSelect.innerHTML = departments.map((department) => `
+      <option value="${department.id}">${department.departmentName}</option>
+    `).join("");
+  }
+}
+
+async function loadMachines() {
+  const table = document.getElementById("machinesTable");
+  const searchValue = document.getElementById("machineSearch")?.value.trim().toLowerCase() || "";
+  const departmentValue = document.getElementById("machineDepartmentFilter")?.value || "";
+  const statusValue = document.getElementById("machineStatusFilter")?.value || "";
+
+  table.innerHTML = `<div class="loading">Loading machines...</div>`;
+
+  try {
+    const response = await apiRequest("/machines");
+    let machines = response.data;
+
+    if (searchValue) {
+      machines = machines.filter((machine) => {
+        return (
+          machine.machineCode.toLowerCase().includes(searchValue) ||
+          machine.machineName.toLowerCase().includes(searchValue) ||
+          machine.status.toLowerCase().includes(searchValue) ||
+          (machine.departmentName || "").toLowerCase().includes(searchValue)
+        );
+      });
+    }
+
+    if (departmentValue) {
+      machines = machines.filter((machine) => Number(machine.departmentId) === Number(departmentValue));
+    }
+
+    if (statusValue) {
+      machines = machines.filter((machine) => machine.status === statusValue);
+    }
+
+    table.innerHTML = renderMachinesTable(machines);
+    bindMachineActions(machines);
+  } catch (error) {
+    table.innerHTML = `<div class="message error" style="display:block;">${error.message}</div>`;
+  }
+}
+
+function renderMachinesTable(machines) {
+  if (!machines.length) {
+    return `<p class="loading">No machines found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Machine</th>
+            <th>Department</th>
+            <th>Status</th>
+            <th>Capacity / Shift</th>
+            <th>Description</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${machines.map((machine) => `
+            <tr>
+              <td><strong>${machine.machineCode}</strong></td>
+              <td>${machine.machineName}</td>
+              <td>${machine.departmentName || "-"}</td>
+              <td>
+                <span class="badge ${
+                  machine.status === "Active"
+                    ? "badge-success"
+                    : machine.status === "Maintenance"
+                    ? "badge-warning"
+                    : "badge-danger"
+                }">
+                  ${machine.status}
+                </span>
+              </td>
+              <td><strong>${machine.capacityPerShift}</strong></td>
+              <td>${machine.description || "-"}</td>
+              <td>
+                <div class="actions">
+                  ${canManageMachines() ? `<button class="edit-btn" data-edit-machine="${machine.id}">Edit</button>` : ""}
+                  ${canDeleteMachines() ? `<button class="danger-btn" data-delete-machine="${machine.id}">Delete</button>` : ""}
+                </div>
+              </td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function bindMachineActions(machines) {
+  document.querySelectorAll("[data-edit-machine]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const machine = machines.find((item) => Number(item.id) === Number(button.dataset.editMachine));
+      fillMachineForm(machine);
+    });
+  });
+
+  document.querySelectorAll("[data-delete-machine]").forEach((button) => {
+    button.addEventListener("click", () => deleteMachine(button.dataset.deleteMachine));
+  });
+}
+
+function fillMachineForm(machine) {
+  document.getElementById("machineFormTitle").textContent = "Edit Production Machine";
+  document.getElementById("machineId").value = machine.id;
+  document.getElementById("machineCode").value = machine.machineCode;
+  document.getElementById("machineName").value = machine.machineName;
+  document.getElementById("machineDepartmentId").value = machine.departmentId;
+  document.getElementById("machineStatus").value = machine.status;
+  document.getElementById("machineCapacityPerShift").value = machine.capacityPerShift;
+  document.getElementById("machineDescription").value = machine.description || "";
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function resetMachineForm() {
+  const form = document.getElementById("machineForm");
+  if (!form) return;
+
+  form.reset();
+  document.getElementById("machineId").value = "";
+  document.getElementById("machineFormTitle").textContent = "Add Production Machine";
+  document.getElementById("machineStatus").value = "Active";
+}
+
+function getMachineFormData() {
+  return {
+    machineCode: document.getElementById("machineCode").value.trim(),
+    machineName: document.getElementById("machineName").value.trim(),
+    departmentId: Number(document.getElementById("machineDepartmentId").value),
+    status: document.getElementById("machineStatus").value,
+    capacityPerShift: Number(document.getElementById("machineCapacityPerShift").value),
+    description: document.getElementById("machineDescription").value.trim()
+  };
+}
+
+function validateMachineForm(data) {
+  if (!data.machineCode) return "Machine code is required.";
+  if (!data.machineName) return "Machine name is required.";
+  if (!data.departmentId) return "Department is required.";
+  if (!data.status) return "Machine status is required.";
+  if (data.capacityPerShift <= 0) return "Capacity per shift must be greater than zero.";
+  return null;
+}
+
+async function handleMachineSubmit(event) {
+  event.preventDefault();
+
+  const message = document.getElementById("machineMessage");
+  const machineId = document.getElementById("machineId").value;
+  const formData = getMachineFormData();
+  const validationError = validateMachineForm(formData);
+
+  message.style.display = "none";
+
+  if (validationError) {
+    showMessage(message, validationError, "error");
+    return;
+  }
+
+  try {
+    if (machineId) {
+      await apiRequest(`/machines/${machineId}`, {
+        method: "PUT",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Production machine updated successfully.", "success");
+    } else {
+      await apiRequest("/machines", {
+        method: "POST",
+        body: JSON.stringify(formData)
+      });
+
+      showMessage(message, "Production machine created successfully.", "success");
+    }
+
+    resetMachineForm();
+    await loadMachines();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+async function deleteMachine(id) {
+  const confirmed = confirm(
+    "Are you sure you want to delete this production machine? Machines used in production records may affect operational history."
+  );
+
+  if (!confirmed) return;
+
+  const message = document.getElementById("machineMessage");
+
+  try {
+    await apiRequest(`/machines/${id}`, {
+      method: "DELETE"
+    });
+
+    showMessage(message, "Production machine deleted successfully.", "success");
+    await loadMachines();
+  } catch (error) {
+    showMessage(message, error.message, "error");
+  }
+}
+
+/* PRODUCTION RECORDS */
 
 function canManageProductionRecords() {
   return ["Admin", "Manager", "Production"].includes(state.user.role);
@@ -1451,6 +2119,8 @@ async function deleteProductionRecord(id) {
     showMessage(message, error.message, "error");
   }
 }
+
+/* REPORTS */
 
 async function renderReports() {
   const view = document.getElementById("view");
