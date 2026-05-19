@@ -174,7 +174,7 @@ async function initializeDatabase() {
       fullName TEXT NOT NULL,
       email TEXT NOT NULL UNIQUE,
       passwordHash TEXT NOT NULL,
-      role TEXT NOT NULL CHECK(role IN ('Admin', 'Manager', 'Production', 'Quality', 'Viewer')),
+      role TEXT NOT NULL CHECK(role IN ('Admin', 'Manager', 'Production', 'Quality', 'HR', 'Viewer')),
       status TEXT NOT NULL DEFAULT 'Active' CHECK(status IN ('Active', 'Inactive')),
       createdAt TEXT DEFAULT CURRENT_TIMESTAMP
     );
@@ -270,6 +270,7 @@ async function seedInitialData(database) {
       ["Factory Manager", "manager@tatleefactory.com", passwordHash, "Manager", "Active"],
       ["Production Officer", "production@tatleefactory.com", passwordHash, "Production", "Active"],
       ["Quality Controller", "quality@tatleefactory.com", passwordHash, "Quality", "Active"],
+      ["HR Specialist", "hr@tatleefactory.com", passwordHash, "HR", "Active"],
       ["Report Viewer", "viewer@tatleefactory.com", passwordHash, "Viewer", "Active"]
     ];
 

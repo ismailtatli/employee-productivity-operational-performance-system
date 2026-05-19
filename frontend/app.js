@@ -74,6 +74,32 @@ function getBadgeClass(value) {
   return "badge-info";
 }
 
+function getRoleDisplayName(role) {
+  const roleNames = {
+    Admin: "System Admin",
+    Manager: "Factory Manager",
+    Production: "Production Supervisor",
+    Quality: "Quality Control Specialist",
+    HR: "HR Specialist",
+    Viewer: "Department Viewer"
+  };
+
+  return roleNames[role] || role;
+}
+
+function getRoleDescription(role) {
+  const descriptions = {
+    Admin: "Full system administration and operational control.",
+    Manager: "Factory-wide operational management and performance review.",
+    Production: "Production output, product and machine tracking.",
+    Quality: "Defect tracking, quality control and production review.",
+    HR: "Employee records, workforce status and continuity monitoring.",
+    Viewer: "Read-only access to limited operational summaries."
+  };
+
+  return descriptions[role] || "Authorized system user.";
+}
+
 function showMessage(element, text, type) {
   element.textContent = text;
   element.className = `message ${type}`;
@@ -179,10 +205,11 @@ function renderLogin() {
                 <div class="form-group">
                   <label>Role</label>
                   <select class="form-control" id="registerRole">
-                    <option value="Production">Production</option>
-                    <option value="Quality">Quality</option>
-                    <option value="Viewer">Viewer</option>
-                    <option value="Manager">Manager</option>
+                    <option value="Manager">Factory Manager</option>
+                    <option value="Production">Production Supervisor</option>
+                    <option value="Quality">Quality Control Specialist</option>
+                    <option value="HR">HR Specialist</option>
+                    <option value="Viewer">Department Viewer</option>
                   </select>
                 </div>
               `
@@ -208,8 +235,9 @@ function renderLogin() {
                   admin@tatleefactory.com · Admin<br />
                   manager@tatleefactory.com · Manager<br />
                   production@tatleefactory.com · Production<br />
-                  quality@tatleefactory.com · Quality<br />
-                  viewer@tatleefactory.com · Viewer<br />
+                  quality@tatleefactory.com · Quality Control Specialist<br />
+                  hr@tatleefactory.com · HR Specialist<br />
+                  viewer@tatleefactory.com · Department Viewer<br />
                   Password: TatLee123
                 </div>
               `
@@ -346,7 +374,7 @@ function renderApp() {
         <div class="sidebar-footer">
           <strong>${state.user.fullName}</strong>
           <span>${state.user.email}</span><br />
-          <span>Role: ${state.user.role}</span>
+          <span>Role: ${getRoleDisplayName(state.user.role)}</span>
           <button class="logout-btn" id="logoutBtn">Logout</button>
         </div>
       </aside>
@@ -406,7 +434,7 @@ function renderTopbar(title, subtitle) {
         <p>${subtitle}</p>
       </div>
       <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-        <span class="role-pill">${state.user.role}</span>
+        <span class="role-pill">${getRoleDisplayName(state.user.role)}</span>
         <span class="role-pill" style="background:#f1f5f9; color:#334155; border-color:#e2e8f0;">
           TatLee Factory
         </span>

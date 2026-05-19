@@ -30,7 +30,7 @@ function validateRegister(data) {
     errors.push("Password is required and must be at least 6 characters.");
   }
 
-  const allowedRoles = ["Admin", "Manager", "Production", "Quality", "Viewer"];
+  const allowedRoles = ["Admin", "Manager", "Production", "Quality", "HR", "Viewer"];
 
   if (data.role && !allowedRoles.includes(data.role)) {
     errors.push("Invalid role.");
