@@ -4,7 +4,9 @@ const state = {
   token: localStorage.getItem("tatlee_token"),
   user: JSON.parse(localStorage.getItem("tatlee_user") || "null"),
   currentView: "dashboard",
-  authMode: "login"
+  authMode: "login",
+  selectedEmployeeReportId: null,
+  selectedEmployeeReportName: null
 };
 
 const app = document.getElementById("app");
@@ -448,6 +450,12 @@ function renderApp() {
   document.querySelectorAll(".nav-item").forEach((button) => {
     button.addEventListener("click", () => {
       state.currentView = button.dataset.view;
+
+      if (button.dataset.view === "reports") {
+        state.selectedEmployeeReportId = null;
+        state.selectedEmployeeReportName = null;
+      }
+
       renderCurrentView();
       updateActiveNav();
     });
@@ -1285,6 +1293,9 @@ function renderEmployeesTable(employees) {
               <td>${employee.hireDate}</td>
               <td>
                 <div class="actions">
+                  <button class="secondary-btn small-action" data-report-employee="${employee.id}">
+                    Report
+                  </button>
                   ${canManageEmployees() ? `<button class="edit-btn" data-edit-employee="${employee.id}">Edit</button>` : ""}
                   ${canDeleteEmployees() ? `<button class="danger-btn" data-delete-employee="${employee.id}">Delete</button>` : ""}
                 </div>
@@ -1298,6 +1309,20 @@ function renderEmployeesTable(employees) {
 }
 
 function bindEmployeeActions(employees) {
+  document.querySelectorAll("[data-report-employee]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const employee = employees.find((item) => Number(item.id) === Number(button.dataset.reportEmployee));
+
+      state.selectedEmployeeReportId = button.dataset.reportEmployee;
+      state.selectedEmployeeReportName = employee ? employee.fullName : "Selected Employee";
+      state.currentView = "reports";
+
+      renderCurrentView();
+      updateActiveNav();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+
   document.querySelectorAll("[data-edit-employee]").forEach((button) => {
     button.addEventListener("click", () => {
       const employee = employees.find((item) => Number(item.id) === Number(button.dataset.editEmployee));
@@ -2779,310 +2804,101 @@ async function deleteProductionRecord(id) {
 
 async function renderReports() {
   const view = document.getElementById("view");
-  const role = state.user.role;
-  const roleName = getRoleDisplayName(role);
 
   view.innerHTML = `
     ${renderTopbar(
-      `${roleName} Reports`,
-      "Loading role-specific operational reports..."
+      "Employee Report Center",
+      "Search employees and open automatic performance reports."
     )}
-
-    <div class="loading">Loading reports...</div>
+    <div class="loading">Loading employee reports...</div>
   `;
 
   try {
-    const [
-      summaryResponse,
-      topPerformersResponse,
-      bonusResponse,
-      promotionResponse,
-      lowContinuityResponse,
-      hrReviewResponse,
-      departmentResponse
-    ] = await Promise.all([
+    const [summaryResponse, recordsResponse, departmentResponse] = await Promise.all([
       apiRequest("/reports/summary"),
-      apiRequest("/reports/top-performers"),
-      apiRequest("/reports/bonus-eligible"),
-      apiRequest("/reports/promotion-candidates"),
-      apiRequest("/reports/low-continuity"),
-      apiRequest("/reports/hr-review-required"),
+      apiRequest("/production-records"),
       apiRequest("/reports/department-performance")
     ]);
 
-    const summary = summaryResponse.data;
-    const topPerformers = topPerformersResponse.data;
-    const bonusEligible = bonusResponse.data;
-    const promotionCandidates = promotionResponse.data;
-    const lowContinuity = lowContinuityResponse.data;
-    const hrReviewRequired = hrReviewResponse.data;
-    const departments = departmentResponse.data;
+    const summary = summaryResponse.data || {};
+    const records = Array.isArray(recordsResponse.data) ? recordsResponse.data : [];
+    const departments = Array.isArray(departmentResponse.data) ? departmentResponse.data : [];
 
-    const emptyState = hasNoWorkspaceData(summary)
-      ? renderWorkspaceEmptyState(role)
-      : "";
+    const employeeReports = buildEmployeeReportProfiles(records, departments);
 
-    if (isExecutiveRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "Executive Performance Reports",
-          "Detailed decision reports for productivity, bonus eligibility, promotion candidates and HR review."
-        )}
+    if (state.selectedEmployeeReportId) {
+      const profile = employeeReports.find(
+        (item) => String(item.employeeId) === String(state.selectedEmployeeReportId)
+      );
 
-        <section class="card-grid">
-          ${metricCard("Total Employees", summary.totalEmployees)}
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
-          ${metricCard("Avg. Quality", summary.averageQualityScore)}
-          ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
-          ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
-          ${metricCard("Promotion Candidates", summary.promotionCandidateCount)}
-          ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
-        </section>
-
-        ${emptyState}
-
-        <section class="content-grid">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Executive Decision Summary</h3>
-            </div>
-            ${renderExecutiveDecisionSummary(summary)}
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Department Performance Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Average Score by Department", departments, "averagePerformanceScore", "departmentName")}
-          </div>
-        </section>
-
-        <section class="content-grid" style="margin-top:22px;">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Top Performers</h3>
-            </div>
-            ${renderReportRecordTable(topPerformers, "No top performer records found.")}
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Bonus Eligible Employees</h3>
-            </div>
-            ${renderReportRecordTable(bonusEligible, "No bonus eligible employees found.")}
-          </div>
-        </section>
-
-        <section class="content-grid" style="margin-top:22px;">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Promotion Candidates</h3>
-            </div>
-            ${renderReportRecordTable(promotionCandidates, "No promotion candidates found.")}
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>HR Review Required</h3>
-            </div>
-            ${renderReportRecordTable(hrReviewRequired, "No HR review required records found.")}
-          </div>
-        </section>
-
-        <section class="content-grid" style="margin-top:22px;">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Low Continuity Employees</h3>
-            </div>
-            ${renderContinuityTable(lowContinuity)}
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Department Performance Table</h3>
-            </div>
-            ${renderDepartmentReportTable(departments)}
-          </div>
-        </section>
-      `;
+      view.innerHTML = renderSingleEmployeeSmartReport(profile, employeeReports, summary);
+      bindBackToReportCenter();
       return;
     }
 
-    if (isProductionRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "Production Reports",
-          "Production output, machine usage and target-vs-actual operational summary."
-        )}
+    view.innerHTML = `
+      ${renderTopbar(
+        "Employee Report Center",
+        "Search employees and open automatic performance reports."
+      )}
 
-        <section class="card-grid">
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Actual Production", summary.totalActualProduction)}
-          ${metricCard("Defective Quantity", summary.totalDefectiveQuantity)}
-          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
-        </section>
+      <section class="smart-report-hero">
+        <div>
+          <span>Management Report Directory</span>
+          <h2>Employee-based performance reports</h2>
+          <p>
+            The system evaluates each employee using production output, quality, attendance,
+            continuity and on-time completion data. Open a report to view the full automatic
+            score-based decision template.
+          </p>
+        </div>
 
-        ${emptyState}
+        <div class="smart-report-score">
+          <small>Average Score</small>
+          <strong>${summary.averagePerformanceScore || 0}</strong>
+          <span>${employeeReports.length} Employee Profiles</span>
+        </div>
+      </section>
 
-        <section class="content-grid">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Production Output Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Actual Production by Department", departments, "totalActualProduction", "departmentName")}
+      <section class="smart-kpi-grid">
+        ${renderSmartKpi("Employees", summary.totalEmployees || employeeReports.length, "Employee profiles")}
+        ${renderSmartKpi("Records", summary.totalProductionRecords || records.length, "Analyzed records")}
+        ${renderSmartKpi("Bonus Eligible", summary.bonusEligibleCount || 0, "Eligible records")}
+        ${renderSmartKpi("Promotion", summary.promotionCandidateCount || 0, "Candidate records")}
+        ${renderSmartKpi("HR Review", summary.hrReviewRequiredCount || 0, "Follow-up records")}
+      </section>
+
+      <section class="smart-directory-card">
+        <div class="smart-directory-header">
+          <div>
+            <h3>Employee Report List</h3>
+            <p>
+              First 20 employees are listed below. Search by name, employee code or department
+              to find another employee.
+            </p>
           </div>
-
-          ${renderRoleInfoPanel(
-            "Restricted Decision Data",
-            "Production Supervisors can review production activity, products and machines. Employee bonus, promotion and HR decision reports are intentionally hidden.",
-            [
-              "Can monitor production volume and operational output.",
-              "Can work with products, machines and production records.",
-              "Cannot access sensitive employee decision reports."
-            ]
-          )}
-        </section>
-
-        <section class="panel" style="margin-top:22px;">
-          <div class="panel-header">
-            <h3>Department Production Summary</h3>
+          <div class="smart-directory-count">
+            <strong>${employeeReports.length}</strong>
+            <span>Total Reports</span>
           </div>
-          ${renderProductionDepartmentReportTable(departments)}
-        </section>
-      `;
-      return;
-    }
+        </div>
 
-    if (isQualityRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "Quality Control Reports",
-          "Defect tracking, quality score monitoring and quality risk review."
-        )}
+        <div class="smart-search-row">
+          <input
+            id="employeeReportSearch"
+            class="form-control"
+            placeholder="Search employee by name, code or department..."
+          />
+          <button class="secondary-btn" id="clearEmployeeReportSearchBtn">Clear</button>
+        </div>
 
-        <section class="card-grid">
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Total Defects", summary.totalDefectiveQuantity)}
-          ${metricCard("Avg. Quality", summary.averageQualityScore)}
-          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
-        </section>
+        <div id="employeeReportList">
+          ${renderSmartEmployeeReportList(employeeReports)}
+        </div>
+      </section>
+    `;
 
-        ${emptyState}
-
-        <section class="content-grid">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Defect Quantity Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Defects by Department", departments, "totalDefectiveQuantity", "departmentName")}
-          </div>
-
-          ${renderRoleInfoPanel(
-            "Quality Report Scope",
-            "Quality Control Specialists focus on defect levels, quality score and production quality risks. Bonus and promotion decisions are hidden.",
-            [
-              "Can review production quality indicators.",
-              "Can monitor defective quantity and quality score.",
-              "Cannot access HR-sensitive bonus or promotion decisions."
-            ]
-          )}
-        </section>
-
-        <section class="panel" style="margin-top:22px;">
-          <div class="panel-header">
-            <h3>Department Quality Summary</h3>
-          </div>
-          ${renderQualityDepartmentReportTable(departments)}
-        </section>
-      `;
-      return;
-    }
-
-    if (isHrRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "HR Workforce Reports",
-          "Employee status, workforce continuity, absence and HR review monitoring."
-        )}
-
-        <section class="card-grid">
-          ${metricCard("Total Employees", summary.totalEmployees)}
-          ${metricCard("Active Employees", summary.activeEmployees)}
-          ${metricCard("Inactive Employees", summary.inactiveEmployees)}
-          ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
-          ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
-          ${metricCard("Low Continuity Records", lowContinuity.length)}
-        </section>
-
-        ${emptyState}
-
-        <section class="content-grid">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Continuity Risk Employees</h3>
-            </div>
-            ${renderContinuityTable(lowContinuity)}
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>HR Review Required</h3>
-            </div>
-            ${renderHrReviewTable(hrReviewRequired)}
-          </div>
-        </section>
-
-        <section class="content-grid" style="margin-top:22px;">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Department Workforce Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Records by Department", departments, "recordCount", "departmentName")}
-          </div>
-
-          ${renderRoleInfoPanel(
-            "HR Report Scope",
-            "HR Specialists focus on employees, department distribution, continuity risk and HR follow-up needs. Product and machine management reports are hidden.",
-            [
-              "Can review employee continuity and HR review indicators.",
-              "Can monitor active and inactive employee status.",
-              "Cannot manage production machines or product targets."
-            ]
-          )}
-        </section>
-      `;
-      return;
-    }
-
-    if (isViewerRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "Summary Reports",
-          "Read-only limited report summary for department viewers."
-        )}
-
-        <section class="card-grid">
-          ${metricCard("Total Employees", summary.totalEmployees)}
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Actual Production", summary.totalActualProduction)}
-          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
-        </section>
-
-        ${emptyState}
-
-        ${renderRoleInfoPanel(
-          "Limited Report Access",
-          "Department Viewers can access only high-level summaries. Sensitive employee scores, bonus decisions and promotion recommendations are hidden.",
-          [
-            "Read-only report access.",
-            "No employee decision details.",
-            "No create, update or delete permissions."
-          ]
-        )}
-      `;
-      return;
-    }
+    bindReportCenterEvents(employeeReports);
   } catch (error) {
     view.innerHTML = `
       ${renderTopbar("Reports", "Unable to load report data.")}
@@ -3091,192 +2907,521 @@ async function renderReports() {
   }
 }
 
-
-function renderExecutiveDecisionSummary(summary) {
-  const riskLevel =
-    Number(summary.hrReviewRequiredCount || 0) > 0
-      ? "Attention Required"
-      : Number(summary.averagePerformanceScore || 0) >= 85
-      ? "Strong"
-      : "Monitor";
-
+function renderSmartKpi(label, value, note) {
   return `
-    <div class="decision-summary">
-      <div class="decision-summary-item">
-        <span>Operational Risk Level</span>
-        <strong>${riskLevel}</strong>
+    <div class="smart-kpi-card">
+      <span>${label}</span>
+      <strong>${value}</strong>
+      <p>${note}</p>
+    </div>
+  `;
+}
+
+function buildEmployeeReportProfiles(records, departments) {
+  const grouped = new Map();
+
+  records.forEach((record) => {
+    const employeeId = Number(record.employeeId);
+    if (!employeeId) return;
+
+    if (!grouped.has(employeeId)) {
+      grouped.set(employeeId, {
+        employeeId,
+        fullName: record.fullName || record.employeeName || "Unknown Employee",
+        employeeCode: record.employeeCode || "Employee Record",
+        departmentName: record.departmentName || "-",
+        records: []
+      });
+    }
+
+    grouped.get(employeeId).records.push(record);
+  });
+
+  return Array.from(grouped.values())
+    .map((employee) => createEmployeeProfile(employee, departments))
+    .sort((a, b) => b.score - a.score);
+}
+
+function profileAverage(records, key) {
+  if (!records.length) return 0;
+  const total = records.reduce((sum, item) => sum + Number(item[key] || 0), 0);
+  return Math.round((total / records.length) * 100) / 100;
+}
+
+function createEmployeeProfile(employee, departments) {
+  const records = employee.records;
+  const latest = records[0] || {};
+
+  const score = profileAverage(records, "overallPerformanceScore");
+  const qualityScore = profileAverage(records, "qualityScore");
+  const continuityScore = profileAverage(records, "continuityScore");
+  const onTimeScore = profileAverage(records, "onTimeCompletionScore");
+
+  const totalTarget = records.reduce((sum, item) => sum + Number(item.targetQuantity || 0), 0);
+  const totalActual = records.reduce((sum, item) => sum + Number(item.actualQuantity || 0), 0);
+  const totalDefective = records.reduce((sum, item) => sum + Number(item.defectiveQuantity || 0), 0);
+  const absentDays = records.reduce((sum, item) => sum + Number(item.absentDays || 0), 0);
+  const lateDays = records.reduce((sum, item) => sum + Number(item.lateDays || 0), 0);
+
+  const departmentRows = departments.filter((item) => item.departmentName === employee.departmentName);
+  const departmentAverage = departmentRows.length
+    ? Number(departmentRows[0].averagePerformanceScore || 0)
+    : 0;
+
+  const trend = calculateProfileTrend(records);
+  const badges = calculateSmartBadges(score, qualityScore, continuityScore, onTimeScore, absentDays, lateDays);
+  const decision = calculateSmartDecision(score, qualityScore, continuityScore, onTimeScore, absentDays, lateDays);
+  const bonus = calculateBonusStatus(score, qualityScore, continuityScore);
+  const promotion = calculatePromotionStatus(score, qualityScore, continuityScore, onTimeScore);
+
+  return {
+    ...employee,
+    latest,
+    score,
+    qualityScore,
+    continuityScore,
+    onTimeScore,
+    totalTarget,
+    totalActual,
+    totalDefective,
+    absentDays,
+    lateDays,
+    departmentAverage,
+    trend,
+    badges,
+    decision,
+    bonus,
+    promotion,
+    recordCount: records.length
+  };
+}
+
+function calculateSmartBadges(score, quality, continuity, onTime, absent, late) {
+  const badges = [];
+
+  if (score >= 90 && quality >= 90 && continuity >= 85) {
+    badges.push("🏆 Bonus Earned");
+  }
+
+  if (score >= 92 && quality >= 90 && continuity >= 90 && onTime >= 85) {
+    badges.push("🚀 Promotion Candidate");
+  }
+
+  if (score >= 96 && quality >= 95 && absent <= 1) {
+    badges.push("⭐ Star of the Month");
+  }
+
+  if (score < 75 || quality < 75 || continuity < 75 || absent >= 4 || late >= 4) {
+    badges.push("⚠️ Needs Improvement");
+  }
+
+  if (!badges.length) {
+    badges.push("✅ Stable Performance");
+  }
+
+  return badges;
+}
+
+function calculateSmartDecision(score, quality, continuity, onTime, absent, late) {
+  if (score >= 95 && quality >= 95 && continuity >= 90) {
+    return "Outstanding Performer";
+  }
+
+  if (score >= 90 && quality >= 90 && continuity >= 85) {
+    return "High Performer";
+  }
+
+  if (score >= 80) {
+    return "Stable Performer";
+  }
+
+  if (score >= 65) {
+    return "Needs Improvement";
+  }
+
+  return "Critical Review Required";
+}
+
+function calculateBonusStatus(score, quality, continuity) {
+  if (score >= 90 && quality >= 90 && continuity >= 85) {
+    return {
+      eligible: true,
+      label: "Bonus Earned",
+      band: score >= 96 ? "A+ Barem" : score >= 92 ? "A Barem" : "B Barem",
+      note: "Bonus criteria have been met for this evaluation period."
+    };
+  }
+
+  const missing = Math.max(0, Math.ceil(90 - score));
+  return {
+    eligible: false,
+    label: "Bonus Not Earned",
+    band: "-",
+    note: `Approximately ${missing} more score points are required to qualify for bonus.`
+  };
+}
+
+function calculatePromotionStatus(score, quality, continuity, onTime) {
+  const percentage = Math.min(
+    100,
+    Math.round(((score / 92) * 0.45 + (quality / 90) * 0.2 + (continuity / 90) * 0.2 + (onTime / 85) * 0.15) * 100)
+  );
+
+  return {
+    percentage,
+    label: percentage >= 100 ? "Eligible for Promotion" : percentage >= 85 ? "Close to Promotion" : "Not Eligible Yet"
+  };
+}
+
+function calculateProfileTrend(records) {
+  if (records.length < 2) {
+    return {
+      label: "Not enough data for trend analysis",
+      direction: "neutral",
+      difference: 0
+    };
+  }
+
+  const latest = Number(records[0].overallPerformanceScore || 0);
+  const previous = Number(records[1].overallPerformanceScore || 0);
+  const difference = Math.round((latest - previous) * 100) / 100;
+
+  if (difference > 0) {
+    return {
+      label: `Compared to the latest previous record +${difference} point increase`,
+      direction: "up",
+      difference
+    };
+  }
+
+  if (difference < 0) {
+    return {
+      label: `Compared to the latest previous record ${difference} point decrease`,
+      direction: "down",
+      difference
+    };
+  }
+
+  return {
+    label: "Performance is stable",
+    direction: "neutral",
+    difference
+  };
+}
+
+function renderSmartEmployeeReportList(employeeReports, query = "") {
+  if (!employeeReports.length) {
+    return `
+      <div class="clean-empty">
+        <strong>No employee reports found</strong>
+        <p>No employee matched your search.</p>
       </div>
-      <div class="decision-summary-item">
-        <span>Management Focus</span>
-        <strong>${summary.hrReviewRequiredCount > 0 ? "HR Review" : "Performance Growth"}</strong>
+    `;
+  }
+
+  const visibleReports = query ? employeeReports : employeeReports.slice(0, 20);
+
+  return `
+    <div class="smart-list-info">
+      <span>
+        ${query
+          ? `${visibleReports.length} matching employee(s)`
+          : `Showing first ${visibleReports.length} employee(s)`
+        }
+      </span>
+      ${!query && employeeReports.length > 20 ? `<strong>Use search to find remaining employees.</strong>` : ""}
+    </div>
+
+    <div class="smart-report-table">
+      <div class="smart-report-head">
+        <span>Employee</span>
+        <span>Score</span>
+        <span>Metrics</span>
+        <span>Status</span>
+        <span>Action</span>
       </div>
-      <div class="decision-summary-item">
-        <span>Automated Decision Support</span>
-        <strong>Enabled</strong>
+
+      ${visibleReports.map((employee) => `
+        <div class="smart-report-row">
+          <div class="smart-employee-cell">
+            <div class="smart-avatar">
+              ${employee.fullName.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase()}
+            </div>
+            <div>
+              <h4>${employee.fullName}</h4>
+              <p>${employee.employeeCode} · ${employee.departmentName}</p>
+            </div>
+          </div>
+
+          <div class="smart-score-cell">
+            <strong>${employee.score}</strong>
+            <span>${employee.decision}</span>
+          </div>
+
+          <div class="smart-metrics-cell">
+            <span>Quality: <strong>${employee.qualityScore}</strong></span>
+            <span>Continuity: <strong>${employee.continuityScore}</strong></span>
+            <span>Absent/Late: <strong>${employee.absentDays}/${employee.lateDays}</strong></span>
+          </div>
+
+          <div class="smart-status-cell">
+            ${employee.badges.slice(0, 2).map((badge) => `<span>${badge}</span>`).join("")}
+          </div>
+
+          <button class="smart-open-report-btn" data-open-employee-report="${employee.employeeId}">
+            Open Report
+          </button>
+        </div>
+      `).join("")}
+    </div>
+  `;
+}
+
+function bindReportCenterEvents(employeeReports) {
+  const searchInput = document.getElementById("employeeReportSearch");
+  const clearButton = document.getElementById("clearEmployeeReportSearchBtn");
+
+  searchInput.addEventListener("input", () => {
+    const query = searchInput.value.trim().toLowerCase();
+
+    const filteredReports = employeeReports.filter((employee) => {
+      return (
+        employee.fullName.toLowerCase().includes(query) ||
+        employee.employeeCode.toLowerCase().includes(query) ||
+        employee.departmentName.toLowerCase().includes(query)
+      );
+    });
+
+    document.getElementById("employeeReportList").innerHTML =
+      renderSmartEmployeeReportList(filteredReports, query);
+
+    bindOpenReportButtons(employeeReports);
+  });
+
+  clearButton.addEventListener("click", () => {
+    searchInput.value = "";
+    document.getElementById("employeeReportList").innerHTML =
+      renderSmartEmployeeReportList(employeeReports);
+
+    bindOpenReportButtons(employeeReports);
+  });
+
+  bindOpenReportButtons(employeeReports);
+}
+
+function bindOpenReportButtons(employeeReports) {
+  document.querySelectorAll("[data-open-employee-report]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const employeeId = button.dataset.openEmployeeReport;
+      const employee = employeeReports.find((item) => String(item.employeeId) === String(employeeId));
+
+      state.selectedEmployeeReportId = employeeId;
+      state.selectedEmployeeReportName = employee ? employee.fullName : "Selected Employee";
+
+      renderReports();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  });
+}
+
+function bindBackToReportCenter() {
+  const button = document.getElementById("backToReportCenterBtn");
+  if (!button) return;
+
+  button.addEventListener("click", () => {
+    state.selectedEmployeeReportId = null;
+    state.selectedEmployeeReportName = null;
+    renderReports();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  });
+}
+
+function renderSingleEmployeeSmartReport(profile, employeeReports, summary) {
+  if (!profile) {
+    return `
+      ${renderTopbar("Employee Report", "No report data found.")}
+      <button class="secondary-btn" id="backToReportCenterBtn">Back to Report Center</button>
+      <div style="margin-top:18px;">
+        ${renderEmptyState(
+          "No personal report found",
+          "This employee does not have reportable production records."
+        )}
       </div>
-    </div>
-    <p class="empty-state-text" style="margin-top:14px;">
-      The report engine automatically evaluates production output, quality indicators,
-      continuity data and on-time completion scores to support management decisions.
-    </p>
+    `;
+  }
+
+  const departmentCompare = profile.departmentAverage
+    ? profile.score >= profile.departmentAverage
+      ? `${Math.round((profile.score - profile.departmentAverage) * 100) / 100} points above department average`
+      : `${Math.round((profile.departmentAverage - profile.score) * 100) / 100} points below department average`
+    : "Department average is not available";
+
+  const strengths = generateStrengths(profile);
+  const improvements = generateImprovements(profile);
+  const nextSteps = generateNextSteps(profile);
+
+  return `
+    ${renderTopbar(
+      "Employee Smart Performance Report",
+      `Automatic score-based report for ${profile.fullName}.`
+    )}
+
+    <button class="secondary-btn" id="backToReportCenterBtn">Back to Report Center</button>
+
+    <section class="smart-personal-report">
+      <div class="smart-personal-hero">
+        <div>
+          <span>Confidential Performance Report</span>
+          <h2>${profile.fullName}</h2>
+          <p>${profile.employeeCode} · ${profile.departmentName} · ${profile.recordCount} evaluated record(s)</p>
+        </div>
+
+        <div class="smart-personal-score">
+          <small>General Efficiency Score</small>
+          <strong>${profile.score}</strong>
+          <span>${profile.decision}</span>
+        </div>
+      </div>
+
+      <div class="smart-badge-strip">
+        ${profile.badges.map((badge) => `<span>${badge}</span>`).join("")}
+      </div>
+
+      <div class="smart-detail-grid">
+        <div class="smart-detail-card">
+          <h3>1. General Evaluation</h3>
+          <table>
+            <tbody>
+              <tr><th>General Efficiency Score</th><td>${profile.score} / 100</td></tr>
+              <tr><th>System Decision</th><td>${profile.decision}</td></tr>
+              <tr><th>Trend</th><td>${profile.trend.label}</td></tr>
+              <tr><th>Department Comparison</th><td>${departmentCompare}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="smart-detail-card">
+          <h3>2. Performance Metrics</h3>
+          <table>
+            <tbody>
+              <tr><th>Completed Work</th><td>${profile.totalActual} / ${profile.totalTarget}</td></tr>
+              <tr><th>Speed / Time Management</th><td>${profile.onTimeScore} / 100</td></tr>
+              <tr><th>Quality Score</th><td>${profile.qualityScore} / 100</td></tr>
+              <tr><th>Attendance Continuity</th><td>${profile.continuityScore} / 100</td></tr>
+              <tr><th>Absence / Late Arrival</th><td>${profile.absentDays} / ${profile.lateDays}</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="smart-detail-card">
+          <h3>3. Bonus and Career Eligibility</h3>
+          <table>
+            <tbody>
+              <tr><th>Bonus Status</th><td>${profile.bonus.label}</td></tr>
+              <tr><th>Bonus Band</th><td>${profile.bonus.band}</td></tr>
+              <tr><th>Bonus Note</th><td>${profile.bonus.note}</td></tr>
+              <tr><th>Promotion Status</th><td>${profile.promotion.label}</td></tr>
+              <tr><th>Promotion Criteria Completion</th><td>${profile.promotion.percentage}%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="smart-detail-card">
+          <h3>4. Analysis and Trends</h3>
+          <table>
+            <tbody>
+              <tr><th>Trend Analysis</th><td>${profile.trend.label}</td></tr>
+              <tr><th>Department Average</th><td>${profile.departmentAverage || "N/A"}</td></tr>
+              <tr><th>Employee Score</th><td>${profile.score}</td></tr>
+              <tr><th>Comparison</th><td>${departmentCompare}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="smart-advice-section">
+        <div>
+          <h3>Strengths</h3>
+          <ul>${strengths.map((item) => `<li>${item}</li>`).join("")}</ul>
+        </div>
+        <div>
+          <h3>Areas for Improvement</h3>
+          <ul>${improvements.map((item) => `<li>${item}</li>`).join("")}</ul>
+        </div>
+        <div>
+          <h3>System Recommendation / Next Steps</h3>
+          <ul>${nextSteps.map((item) => `<li>${item}</li>`).join("")}</ul>
+        </div>
+      </div>
+
+      <div class="smart-report-note">
+        <h3>Automatic Report Summary</h3>
+        <p>
+          ${generateExecutiveReportText(profile, departmentCompare)}
+        </p>
+      </div>
+    </section>
   `;
 }
 
-function renderProductionDepartmentReportTable(departments) {
-  if (!departments.length) {
-    return `<p class="loading">No production department data found.</p>`;
-  }
+function generateStrengths(profile) {
+  const items = [];
 
-  return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Department</th>
-            <th>Records</th>
-            <th>Total Production</th>
-            <th>Defective Quantity</th>
-            <th>Avg. On-Time</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${departments.map((department) => `
-            <tr>
-              <td><strong>${department.departmentName}</strong></td>
-              <td>${department.recordCount}</td>
-              <td><strong>${department.totalActualProduction}</strong></td>
-              <td>${department.totalDefectiveQuantity || 0}</td>
-              <td>${department.averageOnTimeCompletionScore || 0}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+  if (profile.score >= 90) items.push("The employee has a high overall performance score.");
+  if (profile.qualityScore >= 90) items.push("The quality score is strong and the defect rate is under control.");
+  if (profile.continuityScore >= 90) items.push("Attendance Continuity ve dakiklik performansı başarılıdır.");
+  if (profile.onTimeScore >= 85) items.push("The employee performs well in completing work on time.");
+  if (!items.length) items.push("The employee's current performance is at a monitorable level.");
+
+  return items;
 }
 
-function renderQualityDepartmentReportTable(departments) {
-  if (!departments.length) {
-    return `<p class="loading">No quality department data found.</p>`;
-  }
+function generateImprovements(profile) {
+  const items = [];
 
-  return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Department</th>
-            <th>Records</th>
-            <th>Defects</th>
-            <th>Avg. Quality</th>
-            <th>Risk</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${departments.map((department) => {
-            const defects = Number(department.totalDefectiveQuantity || 0);
-            const risk = defects > 100 ? "High" : defects > 30 ? "Medium" : "Low";
+  if (profile.qualityScore < 85) items.push("The quality score should be improved and the defect rate should be reduced.");
+  if (profile.continuityScore < 85) items.push("Absence and late arrival patterns should be monitored closely.");
+  if (profile.onTimeScore < 80) items.push("Time management and delivery discipline should be improved.");
+  if (profile.score < 80) items.push("Overall productivity performance should be supported with an improvement plan.");
+  if (!items.length) items.push("There is no critical improvement area; the current performance level should be maintained.");
 
-            return `
-              <tr>
-                <td><strong>${department.departmentName}</strong></td>
-                <td>${department.recordCount}</td>
-                <td>${defects}</td>
-                <td><strong>${department.averageQualityScore || 0}</strong></td>
-                <td><span class="badge ${risk === "High" ? "badge-danger" : risk === "Medium" ? "badge-warning" : "badge-success"}">${risk}</span></td>
-              </tr>
-            `;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+  return items;
 }
 
-function renderHrReviewTable(records) {
-  if (!records.length) {
-    return `<p class="loading">No HR review required records found.</p>`;
+function generateNextSteps(profile) {
+  if (profile.decision === "Outstanding Performer" || profile.decision === "High Performer") {
+    return [
+      "The employee can be included in the bonus evaluation process.",
+      "The employee can be considered for a management review regarding promotion or leadership potential.",
+      "A motivation reward can be planned to sustain high performance."
+    ];
   }
 
-  return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Department</th>
-            <th>Continuity</th>
-            <th>Absent</th>
-            <th>Late</th>
-            <th>Reason</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${records.map((record) => `
-            <tr>
-              <td>
-                <strong>${record.fullName}</strong><br />
-                <span class="loading">${record.employeeCode || ""}</span>
-              </td>
-              <td>${record.departmentName || "-"}</td>
-              <td><strong>${record.continuityScore}</strong></td>
-              <td>${record.absentDays}</td>
-              <td>${record.lateDays}</td>
-              <td><span class="badge badge-danger">${record.recommendation}</span></td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+  if (profile.decision === "Needs Improvement") {
+    return [
+      "A short-term performance monitoring plan should be prepared for the employee.",
+      "Quality and time management metrics should be reviewed weekly.",
+      "If necessary, a mentoring process with an experienced employee should be started."
+    ];
+  }
+
+  if (profile.decision === "Critical Review Required") {
+    return [
+      "A formal review meeting should be held with HR and the relevant manager.",
+      "The causes of absence, quality issues or production performance problems should be analyzed.",
+      "An improvement plan and follow-up schedule should be documented."
+    ];
+  }
+
+  return [
+    "The current performance should be monitored regularly.",
+    "Quality and attendance continuity targets can be strengthened to move the score above 90.",
+    "Trend changes should be checked in the next evaluation period."
+  ];
 }
 
-
-function renderReportRecordTable(records, emptyMessage) {
-  if (!records.length) {
-    return `<p class="loading">${emptyMessage}</p>`;
-  }
-
-  return `
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>Employee</th>
-            <th>Department</th>
-            <th>Score</th>
-            <th>Grade</th>
-            <th>Bonus</th>
-            <th>Recommendation</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${records.map((record) => `
-            <tr>
-              <td>
-                <strong>${record.fullName}</strong><br />
-                <span class="loading">${record.employeeCode || ""}</span>
-              </td>
-              <td>${record.departmentName || "-"}</td>
-              <td><strong>${record.overallPerformanceScore}</strong></td>
-              <td><span class="badge ${getBadgeClass(record.performanceGrade)}">${record.performanceGrade}</span></td>
-              <td>
-                <span class="badge ${record.bonusEligible ? "badge-success" : "badge-warning"}">
-                  ${record.bonusEligible ? "Eligible" : "Not Eligible"}
-                </span>
-              </td>
-              <td><span class="badge ${getBadgeClass(record.recommendation)}">${record.recommendation}</span></td>
-            </tr>
-            <tr>
-              <td colspan="6" style="background:#f8fafc;">
-                <strong>Report Summary:</strong> ${record.reportSummary}
-              </td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
+function generateExecutiveReportText(profile, departmentCompare) {
+  return `${profile.fullName} has been evaluated based on ${profile.recordCount} production record(s) in the ${profile.departmentName} department. The employee has a general efficiency score of ${profile.score}/100. The quality score is ${profile.qualityScore}, the continuity score is ${profile.continuityScore}, and the on-time completion score is ${profile.onTimeScore}. The employee's absence/late arrival status is ${profile.absentDays}/${profile.lateDays}. The final system-assigned status is "${profile.decision}", and the bonus result is "${profile.bonus.label}". In department comparison, ${departmentCompare}. Based on these results, the recommended action is: ${generateNextSteps(profile)[0]}`;
 }
 
 function renderContinuityTable(records) {
