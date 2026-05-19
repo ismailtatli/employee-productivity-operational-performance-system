@@ -653,225 +653,360 @@ function renderRoleInfoPanel(title, description, items) {
   `;
 }
 
+
+function renderEmptyState(title, description, steps = []) {
+  return `
+    <div class="panel empty-state-panel">
+      <div class="empty-state-icon">TF</div>
+      <h3>${title}</h3>
+      <p>${description}</p>
+      ${
+        steps.length
+          ? `
+            <div class="onboarding-steps">
+              ${steps.map((step, index) => `
+                <div class="onboarding-step">
+                  <strong>${index + 1}</strong>
+                  <span>${step}</span>
+                </div>
+              `).join("")}
+            </div>
+          `
+          : ""
+      }
+    </div>
+  `;
+}
+
+function renderRoleInsightCard(title, value, description) {
+  return `
+    <div class="insight-card">
+      <span>${title}</span>
+      <strong>${value}</strong>
+      <p>${description}</p>
+    </div>
+  `;
+}
+
+function renderSimpleBarChart(items, valueKey, labelKey, title) {
+  if (!items.length) {
+    return renderEmptyState(
+      `${title} is not available yet`,
+      "There is not enough operational data to generate this chart."
+    );
+  }
+
+  const maxValue = Math.max(...items.map((item) => Number(item[valueKey] || 0)), 1);
+
+  return `
+    <div class="chart-box">
+      <h3>${title}</h3>
+      <div class="bar-chart">
+        ${items.map((item) => {
+          const value = Number(item[valueKey] || 0);
+          const width = Math.max((value / maxValue) * 100, 4);
+          return `
+            <div class="bar-row">
+              <span>${item[labelKey] || "Unknown"}</span>
+              <div class="bar-track">
+                <div class="bar-fill" style="width:${width}%"></div>
+              </div>
+              <strong>${value}</strong>
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </div>
+  `;
+}
+
+function getDashboardSubtitleByRole() {
+  const role = state.user?.role;
+
+  if (role === "Production") {
+    return "Production-focused overview of products, machines, output records and operational workload.";
+  }
+
+  if (role === "Quality") {
+    return "Quality-focused overview of defect quantities, production quality and operational risk indicators.";
+  }
+
+  if (role === "HR") {
+    return "HR-focused overview of workforce status, employee continuity and department distribution.";
+  }
+
+  if (role === "Viewer") {
+    return "Limited read-only overview of operational activity and factory performance indicators.";
+  }
+
+  return "Executive overview of workforce productivity, operational performance and management decisions.";
+}
+
 /* DASHBOARD */
 
 async function renderDashboard() {
   const view = document.getElementById("view");
-  const role = state.user.role;
-  const roleName = getRoleDisplayName(role);
 
   view.innerHTML = `
     ${renderTopbar(
-      `${roleName} Dashboard`,
-      getRoleDescription(role)
+      `${getRoleDisplayName(state.user.role)} Dashboard`,
+      getDashboardSubtitleByRole()
     )}
-    <div class="loading">Loading role-based dashboard data...</div>
+    <div class="loading">Loading dashboard data...</div>
   `;
 
   try {
-    const [summaryResponse, topPerformersResponse, departmentResponse] = await Promise.all([
-      apiRequest("/reports/summary"),
-      apiRequest("/reports/top-performers"),
-      apiRequest("/reports/department-performance")
-    ]);
+    const summaryResponse = await apiRequest("/reports/summary");
+    const topPerformersResponse = canAccessView("reports")
+      ? await apiRequest("/reports/top-performers")
+      : { data: [] };
+    const departmentResponse = canAccessView("reports")
+      ? await apiRequest("/reports/department-performance")
+      : { data: [] };
 
     const summary = summaryResponse.data;
     const topPerformers = topPerformersResponse.data;
     const departments = departmentResponse.data;
 
-    const emptyState = hasNoWorkspaceData(summary)
-      ? renderWorkspaceEmptyState(role)
-      : "";
-
-    if (isExecutiveRole()) {
+    if (summary.totalEmployees === 0 && summary.totalProductionRecords === 0) {
       view.innerHTML = `
         ${renderTopbar(
-          "Executive Dashboard",
-          "Company-wide operational overview, workforce productivity and management decision indicators."
+          `${getRoleDisplayName(state.user.role)} Dashboard`,
+          getDashboardSubtitleByRole()
         )}
 
-        <section class="card-grid">
-          ${metricCard("Total Employees", summary.totalEmployees)}
-          ${metricCard("Active Employees", summary.activeEmployees)}
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Actual Production", summary.totalActualProduction)}
-          ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
-          ${metricCard("Avg. Quality", summary.averageQualityScore)}
-          ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
-          ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
-        </section>
-
-        ${emptyState}
-
-        <section class="content-grid">
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Top Performers</h3>
-            </div>
-            ${renderTopPerformersTable(topPerformers)}
-          </div>
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Department Performance Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Average Performance by Department", departments, "averagePerformanceScore", "departmentName")}
-          </div>
-        </section>
+        ${renderEmptyState(
+          "Your private workspace is ready",
+          "This account has an isolated workspace. Start by adding the records that match your responsibility, or use the prepared demo accounts for a full presentation.",
+          getRoleOnboardingSteps()
+        )}
       `;
       return;
     }
 
-    if (isProductionRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "Production Supervisor Dashboard",
-          "Production-focused workspace for product output, machine status and target-vs-actual monitoring."
-        )}
-
-        <section class="card-grid">
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Actual Production", summary.totalActualProduction)}
-          ${metricCard("Defective Quantity", summary.totalDefectiveQuantity)}
-          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
-        </section>
-
-        ${emptyState}
-
-        <section class="content-grid">
-          ${renderRoleInfoPanel(
-            "Production Scope",
-            "Production Supervisors focus on product output, machine usage and production record entry. Sensitive employee decisions are hidden from this role.",
-            [
-              "Manage products and production machines.",
-              "Enter target quantity, actual quantity and on-time completion score.",
-              "Monitor production volume without seeing bonus or promotion decisions."
-            ]
-          )}
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Production Output Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Actual Production by Department", departments, "totalActualProduction", "departmentName")}
-          </div>
-        </section>
-      `;
+    if (state.user.role === "Production") {
+      view.innerHTML = renderProductionDashboard(summary, departments);
       return;
     }
 
-    if (isQualityRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "Quality Control Dashboard",
-          "Quality-focused workspace for defect tracking, quality score monitoring and production review."
-        )}
-
-        <section class="card-grid">
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Total Defects", summary.totalDefectiveQuantity)}
-          ${metricCard("Avg. Quality", summary.averageQualityScore)}
-          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
-        </section>
-
-        ${emptyState}
-
-        <section class="content-grid">
-          ${renderRoleInfoPanel(
-            "Quality Review Scope",
-            "Quality Control Specialists review production quality indicators and defect-related risks. HR decisions, bonus eligibility and promotion decisions are outside this role.",
-            [
-              "Monitor defective quantity and quality score.",
-              "Review production records from a quality perspective.",
-              "Identify operational quality risks."
-            ]
-          )}
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Defect Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Defective Quantity by Department", departments, "totalDefectiveQuantity", "departmentName")}
-          </div>
-        </section>
-      `;
+    if (state.user.role === "Quality") {
+      view.innerHTML = renderQualityDashboard(summary, topPerformers, departments);
       return;
     }
 
-    if (isHrRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "HR Specialist Dashboard",
-          "Workforce-focused workspace for employee status, department distribution and continuity monitoring."
-        )}
-
-        <section class="card-grid">
-          ${metricCard("Total Employees", summary.totalEmployees)}
-          ${metricCard("Active Employees", summary.activeEmployees)}
-          ${metricCard("Inactive Employees", summary.inactiveEmployees)}
-          ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
-          ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-        </section>
-
-        ${emptyState}
-
-        <section class="content-grid">
-          ${renderRoleInfoPanel(
-            "HR Scope",
-            "HR Specialists focus on workforce size, employee status and continuity risks. Product and machine management are outside the HR operational scope.",
-            [
-              "Track total, active and inactive employees.",
-              "Monitor absence, late days and continuity risks.",
-              "Review HR follow-up needs without managing production machines."
-            ]
-          )}
-
-          <div class="panel">
-            <div class="panel-header">
-              <h3>Department Workforce Chart</h3>
-            </div>
-            ${renderSimpleBarChart("Records by Department", departments, "recordCount", "departmentName")}
-          </div>
-        </section>
-      `;
+    if (state.user.role === "HR") {
+      view.innerHTML = renderHrDashboard(summary, departments);
       return;
     }
 
-    if (isViewerRole()) {
-      view.innerHTML = `
-        ${renderTopbar(
-          "Department Viewer Dashboard",
-          "Read-only dashboard with limited operational summary information."
-        )}
-
-        <section class="card-grid">
-          ${metricCard("Total Employees", summary.totalEmployees)}
-          ${metricCard("Production Records", summary.totalProductionRecords)}
-          ${metricCard("Actual Production", summary.totalActualProduction)}
-          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
-        </section>
-
-        ${emptyState}
-
-        ${renderRoleInfoPanel(
-          "Read-Only Access",
-          "Department Viewers can monitor limited summaries but cannot create, update or delete operational records.",
-          [
-            "View limited dashboard summary.",
-            "No access to sensitive employee decision reports.",
-            "No create, update or delete permissions."
-          ]
-        )}
-      `;
+    if (state.user.role === "Viewer") {
+      view.innerHTML = renderViewerDashboard(summary, departments);
       return;
     }
+
+    view.innerHTML = renderExecutiveDashboard(summary, topPerformers, departments);
   } catch (error) {
     view.innerHTML = `
       ${renderTopbar("Dashboard", "Unable to load dashboard data.")}
       <div class="message error" style="display:block;">${error.message}</div>
     `;
   }
+}
+
+function getRoleOnboardingSteps() {
+  const role = state.user?.role;
+
+  if (role === "Production") {
+    return [
+      "Review available products and machines.",
+      "Create production records with target and actual quantities.",
+      "Track machine usage and production output."
+    ];
+  }
+
+  if (role === "Quality") {
+    return [
+      "Review production records assigned for quality control.",
+      "Monitor defective quantity and quality score.",
+      "Identify high-risk product or production records."
+    ];
+  }
+
+  if (role === "HR") {
+    return [
+      "Create employee and department records.",
+      "Track active and inactive employees.",
+      "Monitor absence, late days and continuity risk."
+    ];
+  }
+
+  if (role === "Viewer") {
+    return [
+      "Review read-only dashboard summaries.",
+      "Use reports for limited operational visibility."
+    ];
+  }
+
+  return [
+    "Create departments and employees.",
+    "Add products and production machines.",
+    "Enter production records to generate automatic reports."
+  ];
+}
+
+function renderExecutiveDashboard(summary, topPerformers, departments) {
+  return `
+    ${renderTopbar(
+      `${getRoleDisplayName(state.user.role)} Dashboard`,
+      getDashboardSubtitleByRole()
+    )}
+
+    <section class="card-grid">
+      ${metricCard("Total Employees", summary.totalEmployees)}
+      ${metricCard("Active Employees", summary.activeEmployees)}
+      ${metricCard("Production Records", summary.totalProductionRecords)}
+      ${metricCard("Actual Production", summary.totalActualProduction)}
+      ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
+      ${metricCard("Avg. Quality", summary.averageQualityScore)}
+      ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
+      ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
+    </section>
+
+    <section class="insight-grid">
+      ${renderRoleInsightCard("Management Scope", "Full", "This role can review operational, HR and performance indicators.")}
+      ${renderRoleInsightCard("Promotion Candidates", summary.promotionCandidateCount, "Automatically calculated from performance, quality and continuity scores.")}
+      ${renderRoleInsightCard("HR Review Required", summary.hrReviewRequiredCount, "Employees with critical performance or continuity indicators.")}
+    </section>
+
+    <section class="content-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Top Performers</h3>
+        </div>
+        ${renderTopPerformersTable(topPerformers)}
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Department Performance</h3>
+        </div>
+        ${renderDepartmentTable(departments)}
+      </div>
+    </section>
+
+    ${renderSimpleBarChart(departments, "averagePerformanceScore", "departmentName", "Department Performance Chart")}
+  `;
+}
+
+function renderProductionDashboard(summary, departments) {
+  return `
+    ${renderTopbar(
+      "Production Supervisor Dashboard",
+      getDashboardSubtitleByRole()
+    )}
+
+    <section class="card-grid">
+      ${metricCard("Production Records", summary.totalProductionRecords)}
+      ${metricCard("Actual Production", summary.totalActualProduction)}
+      ${metricCard("Defective Quantity", summary.totalDefectiveQuantity)}
+      ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
+    </section>
+
+    <section class="insight-grid">
+      ${renderRoleInsightCard("Visible Modules", "Production", "Products, machines and production records are available for this role.")}
+      ${renderRoleInsightCard("Restricted Data", "Protected", "Employee bonus, promotion and HR review decisions are hidden.")}
+      ${renderRoleInsightCard("Operational Focus", "Output", "This dashboard focuses on target, actual production and machine usage.")}
+    </section>
+
+    ${renderSimpleBarChart(departments, "totalActualProduction", "departmentName", "Production Output by Department")}
+  `;
+}
+
+function renderQualityDashboard(summary, topPerformers, departments) {
+  return `
+    ${renderTopbar(
+      "Quality Control Specialist Dashboard",
+      getDashboardSubtitleByRole()
+    )}
+
+    <section class="card-grid">
+      ${metricCard("Production Records", summary.totalProductionRecords)}
+      ${metricCard("Total Defects", summary.totalDefectiveQuantity)}
+      ${metricCard("Avg. Quality", summary.averageQualityScore)}
+      ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
+    </section>
+
+    <section class="insight-grid">
+      ${renderRoleInsightCard("Quality Scope", "Defects", "This role focuses on defective quantity and product quality indicators.")}
+      ${renderRoleInsightCard("Decision Privacy", "Protected", "Bonus and promotion decisions are not part of quality operations.")}
+      ${renderRoleInsightCard("Risk Review", summary.totalDefectiveQuantity, "Total detected defective quantity in this workspace.")}
+    </section>
+
+    <section class="content-grid">
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Quality-Oriented Records</h3>
+        </div>
+        ${renderTopPerformersTable(topPerformers)}
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h3>Department Quality Overview</h3>
+        </div>
+        ${renderDepartmentTable(departments)}
+      </div>
+    </section>
+  `;
+}
+
+function renderHrDashboard(summary, departments) {
+  return `
+    ${renderTopbar(
+      "HR Specialist Dashboard",
+      getDashboardSubtitleByRole()
+    )}
+
+    <section class="card-grid">
+      ${metricCard("Total Employees", summary.totalEmployees)}
+      ${metricCard("Active Employees", summary.activeEmployees)}
+      ${metricCard("Inactive Employees", summary.inactiveEmployees)}
+      ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
+      ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
+    </section>
+
+    <section class="insight-grid">
+      ${renderRoleInsightCard("HR Scope", "Workforce", "This role focuses on employees, departments and continuity risk.")}
+      ${renderRoleInsightCard("Production Details", "Limited", "Product and machine management are not shown to HR users.")}
+      ${renderRoleInsightCard("Continuity Monitoring", summary.averageContinuityScore, "Average continuity score based on absence and late days.")}
+    </section>
+
+    ${renderSimpleBarChart(departments, "recordCount", "departmentName", "Workforce Activity by Department")}
+  `;
+}
+
+function renderViewerDashboard(summary, departments) {
+  return `
+    ${renderTopbar(
+      "Department Viewer Dashboard",
+      getDashboardSubtitleByRole()
+    )}
+
+    <section class="card-grid">
+      ${metricCard("Total Employees", summary.totalEmployees)}
+      ${metricCard("Production Records", summary.totalProductionRecords)}
+      ${metricCard("Actual Production", summary.totalActualProduction)}
+      ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
+    </section>
+
+    <section class="insight-grid">
+      ${renderRoleInsightCard("Access Type", "Read Only", "This role can review limited summaries but cannot modify records.")}
+      ${renderRoleInsightCard("Sensitive Decisions", "Hidden", "Bonus, promotion and HR decisions are restricted.")}
+      ${renderRoleInsightCard("Workspace", "Private", "Displayed data belongs only to this authenticated user's workspace.")}
+    </section>
+
+    ${renderSimpleBarChart(departments, "averagePerformanceScore", "departmentName", "Limited Department Overview")}
+  `;
 }
 
 function renderTopPerformersTable(records) {
