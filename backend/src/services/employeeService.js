@@ -2,11 +2,29 @@ const employeeRepository = require("../repositories/employeeRepository");
 const departmentRepository = require("../repositories/departmentRepository");
 const { validateEmployeeInput } = require("../validators/employeeValidator");
 
-async function getAllEmployees(ownerUserId) {
-  const employees = await employeeRepository.getAllEmployees(ownerUserId);
+async function getAllEmployees(user) {
+  if (!user) {
+    throw new Error("Authenticated user is required.");
+  }
+
+  if (["Admin", "Manager", "HR"].includes(user.role)) {
+    const employees = await employeeRepository.getAllEmployees(user.id);
+
+    return {
+      data: employees
+    };
+  }
+
+  if (user.role === "Production") {
+    const employees = await employeeRepository.getProductionAssignableEmployees();
+
+    return {
+      data: employees
+    };
+  }
 
   return {
-    data: employees
+    data: []
   };
 }
 

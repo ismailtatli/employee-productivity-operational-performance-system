@@ -2,7 +2,7 @@ const employeeService = require("../services/employeeService");
 
 async function getAllEmployees(req, res) {
   try {
-    const result = await employeeService.getAllEmployees(req.user.id);
+    const result = await employeeService.getAllEmployees(req.user);
     res.status(200).json(result);
   } catch (error) {
     res.status(error.statusCode || 500).json({

@@ -137,7 +137,35 @@ async function deleteEmployee(id, ownerUserId) {
   return employee;
 }
 
+
+async function getProductionAssignableEmployees() {
+  const database = await getDatabase();
+
+  return database.all(
+    `
+    SELECT
+      employees.*,
+      departments.departmentName
+    FROM employees
+    LEFT JOIN departments ON employees.departmentId = departments.id
+    WHERE employees.status = 'Active'
+      AND (
+        departments.departmentName IN ('Production', 'Packaging', 'Logistics')
+        OR LOWER(employees.position) LIKE '%operator%'
+        OR LOWER(employees.position) LIKE '%worker%'
+        OR LOWER(employees.position) LIKE '%line%'
+        OR LOWER(employees.position) LIKE '%machine%'
+        OR LOWER(employees.position) LIKE '%packaging%'
+        OR LOWER(employees.position) LIKE '%shift%'
+        OR LOWER(employees.position) LIKE '%production%'
+      )
+    ORDER BY employees.fullName ASC
+    `
+  );
+}
+
 module.exports = {
+  getProductionAssignableEmployees,
   getAllEmployees,
   getEmployeeById,
   getEmployeesByDepartment,
