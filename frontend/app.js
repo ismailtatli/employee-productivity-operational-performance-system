@@ -149,7 +149,11 @@ function getAllowedViewsByRole(role) {
 }
 
 function canAccessView(view) {
-  return getAllowedViewsByRole(state.user?.role).includes(view);
+  if (view === "reports") {
+    return ["Admin", "Factory Manager"].includes(getNormalizedRole());
+  }
+
+  return getAllowedViewsByRole().includes(view);
 }
 
 function renderNavigationMenu() {
@@ -591,6 +595,27 @@ function getDashboardSubtitleByRole() {
 
 function roleLabel() {
   return getNormalizedRole();
+}
+
+
+function canUpdateMachineStatusOnly() {
+  return getNormalizedRole() === "Production Supervisor";
+}
+
+function canQualityEditProductionRecordsOnly() {
+  return getNormalizedRole() === "Quality Control Specialist";
+}
+
+function isViewerRole() {
+  return getNormalizedRole() === "Department Viewer";
+}
+
+function isReadOnlyProductsRole() {
+  return ["Production Supervisor", "Quality Control Specialist"].includes(getNormalizedRole());
+}
+
+function canSeeEmployeeReportButton() {
+  return ["Admin", "Factory Manager"].includes(getNormalizedRole());
 }
 
 
@@ -1365,9 +1390,7 @@ function renderEmployeesTable(employees) {
               <td>${employee.hireDate}</td>
               <td>
                 <div class="actions">
-                  <button class="secondary-btn small-action" data-report-employee="${employee.id}">
-                    Report
-                  </button>
+                  ${canSeeEmployeeReportButton() ? `<button class="secondary-btn small-action" data-report-employee="${employee.id}">Report</button>` : ""}
                   ${canManageEmployees() ? `<button class="edit-btn" data-edit-employee="${employee.id}">Edit</button>` : ""}
                   ${canDeleteEmployees() ? `<button class="danger-btn" data-delete-employee="${employee.id}">Delete</button>` : ""}
                 </div>
@@ -1517,7 +1540,7 @@ function canManageDepartments() {
 }
 
 function canDeleteDepartments() {
-  return ["Admin", "HR Specialist"].includes(getNormalizedRole());
+  return ["Admin"].includes(getNormalizedRole());
 }
 
 async function renderDepartments() {
@@ -1774,7 +1797,7 @@ async function deleteDepartment(id) {
 /* PRODUCTS */
 
 function canManageProducts() {
-  return ["Admin", "Factory Manager", "Production Supervisor"].includes(getNormalizedRole());
+  return ["Admin", "Factory Manager"].includes(getNormalizedRole());
 }
 
 function canDeleteProducts() {
@@ -1795,7 +1818,7 @@ async function renderProducts() {
     ${
       canManageProducts()
         ? renderProductForm()
-        : `<div class="panel"><p class="loading">You have view-only access for product records.</p></div>`
+        : `<div class="panel"><p class="loading">You have read-only access to product definitions and standards.</p></div>`
     }
 
     <div class="panel">
@@ -2082,7 +2105,7 @@ async function deleteProduct(id) {
 /* MACHINES */
 
 function canManageMachines() {
-  return ["Admin", "Factory Manager", "Production Supervisor"].includes(getNormalizedRole());
+  return ["Admin", "Factory Manager"].includes(getNormalizedRole());
 }
 
 function canDeleteMachines() {
@@ -2103,7 +2126,9 @@ async function renderMachines() {
     ${
       canManageMachines()
         ? renderMachineForm()
-        : `<div class="panel"><p class="loading">You have view-only access for production machines.</p></div>`
+        : canUpdateMachineStatusOnly()
+          ? `<div class="panel"><p class="loading">Production Supervisor can monitor machines and update machine status. Machine create/delete is restricted to Admin and Factory Manager.</p></div>`
+          : `<div class="panel"><p class="loading">You have view-only access for production machines.</p></div>`
     }
 
     <div class="panel">
@@ -2451,7 +2476,9 @@ async function renderProductionRecords() {
     ${
       canManageProductionRecords()
         ? renderProductionRecordForm()
-        : `<div class="panel"><p class="loading">You have view-only access for production records.</p></div>`
+        : canQualityEditProductionRecordsOnly()
+          ? `<div class="panel"><p class="loading">Quality Control can review production records and validate defect/quality information. Production quantity editing is restricted.</p></div>`
+          : `<div class="panel"><p class="loading">You have view-only access for production records.</p></div>`
     }
 
     <div class="panel">
