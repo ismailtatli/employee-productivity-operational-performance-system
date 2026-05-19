@@ -1,3 +1,64 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Employees
+ *   description: Employee management endpoints
+ */
+
+/**
+ * @swagger
+ * /api/employees:
+ *   get:
+ *     summary: Get all employees
+ *     tags: [Employees]
+ *     responses:
+ *       200:
+ *         description: Employee list retrieved successfully
+ *
+ *   post:
+ *     summary: Create a new employee
+ *     tags: [Employees]
+ *     responses:
+ *       201:
+ *         description: Employee created successfully
+ */
+
+/**
+ * @swagger
+ * /api/employees/{id}:
+ *   get:
+ *     summary: Get employee by ID
+ *     tags: [Employees]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Employee retrieved successfully
+ *
+ *   put:
+ *     summary: Update employee
+ *     tags: [Employees]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Employee updated successfully
+ *
+ *   delete:
+ *     summary: Delete employee
+ *     tags: [Employees]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *     responses:
+ *       200:
+ *         description: Employee deleted successfully
+ */
 const express = require("express");
 
 const employeeController = require("../controllers/employeeController");

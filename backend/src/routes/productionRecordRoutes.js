@@ -1,3 +1,52 @@
+/**
+ * @swagger
+ * tags:
+ *   name: Production Records
+ *   description: Production operation endpoints
+ */
+
+/**
+ * @swagger
+ * /api/production-records:
+ *   get:
+ *     summary: Get all production records
+ *     tags: [Production Records]
+ *     responses:
+ *       200:
+ *         description: Production records retrieved successfully
+ *
+ *   post:
+ *     summary: Create production record
+ *     tags: [Production Records]
+ *     responses:
+ *       201:
+ *         description: Production record created successfully
+ */
+
+/**
+ * @swagger
+ * /api/production-records/{id}:
+ *   get:
+ *     summary: Get production record by ID
+ *     tags: [Production Records]
+ *     responses:
+ *       200:
+ *         description: Production record retrieved successfully
+ *
+ *   put:
+ *     summary: Update production record
+ *     tags: [Production Records]
+ *     responses:
+ *       200:
+ *         description: Production record updated successfully
+ *
+ *   delete:
+ *     summary: Delete production record
+ *     tags: [Production Records]
+ *     responses:
+ *       200:
+ *         description: Production record deleted successfully
+ */
 const express = require("express");
 
 const productionRecordController = require("../controllers/productionRecordController");

@@ -1,5 +1,4 @@
 const express = require("express");
-
 const productController = require("../controllers/productController");
 const { authenticateToken } = require("../middleware/authMiddleware");
 const { authorizeRoles } = require("../middleware/roleMiddleware");
@@ -10,54 +9,23 @@ const router = express.Router();
  * @swagger
  * tags:
  *   name: Products
- *   description: Product catalog management endpoints
+ *   description: Product management endpoints
  */
 
 /**
  * @swagger
- * /products:
+ * /api/products:
  *   get:
  *     summary: Get all products
- *     description: Returns the complete TatLee Factory product catalog.
  *     tags: [Products]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Product list retrieved successfully.
- */
-router.get("/", authenticateToken, productController.getAllProducts);
-
-/**
- * @swagger
- * /products/{id}:
- *   get:
- *     summary: Get product by ID
- *     description: Returns a single product by its ID.
- *     tags: [Products]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: integer
- *         description: Product ID
- *     responses:
- *       200:
- *         description: Product retrieved successfully.
- *       404:
- *         description: Product not found.
- */
-router.get("/:id", authenticateToken, productController.getProductById);
-
-/**
- * @swagger
- * /products:
+ *         description: Product list retrieved successfully
+ *
  *   post:
  *     summary: Create a product
- *     description: Creates a new product. Allowed roles are Admin, Manager and Production.
  *     tags: [Products]
  *     security:
  *       - bearerAuth: []
@@ -94,25 +62,20 @@ router.get("/:id", authenticateToken, productController.getProductById);
  *                 example: Active
  *     responses:
  *       201:
- *         description: Product created successfully.
+ *         description: Product created successfully
  *       400:
- *         description: Validation error.
+ *         description: Validation error
  *       403:
- *         description: Forbidden.
+ *         description: Forbidden
  */
-router.post(
-  "/",
-  authenticateToken,
-  authorizeRoles("Admin", "Manager", "Production"),
-  productController.createProduct
-);
+router.get("/", authenticateToken, productController.getAllProducts);
+router.post("/", authenticateToken, authorizeRoles("Admin", "Manager", "Production"), productController.createProduct);
 
 /**
  * @swagger
- * /products/{id}:
- *   put:
- *     summary: Update a product
- *     description: Updates an existing product by ID. Allowed roles are Admin, Manager and Production.
+ * /api/products/{id}:
+ *   get:
+ *     summary: Get product by ID
  *     tags: [Products]
  *     security:
  *       - bearerAuth: []
@@ -122,7 +85,23 @@ router.post(
  *         required: true
  *         schema:
  *           type: integer
- *         description: Product ID
+ *     responses:
+ *       200:
+ *         description: Product retrieved successfully
+ *       404:
+ *         description: Product not found
+ *
+ *   put:
+ *     summary: Update a product
+ *     tags: [Products]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: integer
  *     requestBody:
  *       required: true
  *       content:
@@ -156,25 +135,14 @@ router.post(
  *                 example: Active
  *     responses:
  *       200:
- *         description: Product updated successfully.
+ *         description: Product updated successfully
  *       400:
- *         description: Validation error.
+ *         description: Validation error
  *       404:
- *         description: Product not found.
- */
-router.put(
-  "/:id",
-  authenticateToken,
-  authorizeRoles("Admin", "Manager", "Production"),
-  productController.updateProduct
-);
-
-/**
- * @swagger
- * /products/{id}:
+ *         description: Product not found
+ *
  *   delete:
  *     summary: Delete a product
- *     description: Deletes a product by ID. Only Admin can delete products.
  *     tags: [Products]
  *     security:
  *       - bearerAuth: []
@@ -184,20 +152,16 @@ router.put(
  *         required: true
  *         schema:
  *           type: integer
- *         description: Product ID
  *     responses:
  *       200:
- *         description: Product deleted successfully.
+ *         description: Product deleted successfully
  *       403:
- *         description: Forbidden.
+ *         description: Forbidden
  *       404:
- *         description: Product not found.
+ *         description: Product not found
  */
-router.delete(
-  "/:id",
-  authenticateToken,
-  authorizeRoles("Admin"),
-  productController.deleteProduct
-);
+router.get("/:id", authenticateToken, productController.getProductById);
+router.put("/:id", authenticateToken, authorizeRoles("Admin", "Manager", "Production"), productController.updateProduct);
+router.delete("/:id", authenticateToken, authorizeRoles("Admin"), productController.deleteProduct);
 
 module.exports = router;

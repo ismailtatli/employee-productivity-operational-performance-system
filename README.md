@@ -1,636 +1,427 @@
 # Employee Productivity and Operational Performance Management System
 
+> A role-based factory management web application designed for **TatLee Factory**.  
+> Built as a System Analysis and Design final project — Spring 2026.
+
+---
+
+## Table of Contents
+
+- [Project Overview](#project-overview)
+- [Main Features](#main-features)
+- [Technology Stack](#technology-stack)
+- [Software Architecture](#software-architecture)
+- [Role-Based Access Control](#role-based-access-control)
+- [Smart Performance Scoring](#smart-performance-scoring)
+- [API Overview](#api-overview)
+- [Swagger API Documentation](#swagger-api-documentation)
+- [Database Design](#database-design)
+- [Security and Authorization](#security-and-authorization)
+- [Installation and Running](#installation-and-running)
+- [Running Tests](#running-tests)
+- [Demo Users](#demo-users)
+- [Project Structure](#project-structure)
+- [Screenshots](#screenshots)
+- [GitHub Repository](#github-repository)
+- [Conclusion](#conclusion)
+
+---
+
 ## Project Overview
 
-Employee Productivity and Operational Performance Management System is a role-based factory management web application designed for TatLee Factory.
+The Employee Productivity and Operational Performance Management System helps a factory monitor:
 
-The system helps a factory monitor employee productivity, production performance, machine usage, product output, quality indicators, attendance continuity, bonus eligibility, promotion candidates, and operational decision reports.
+- Employee productivity and performance
+- Production records and machine usage
+- Product output and quality indicators
+- Attendance continuity and punctuality
+- Bonus eligibility and promotion candidates
+- Operational decision reports
 
-This project was developed as a System Analysis and Design final project. It demonstrates a complete software solution with authentication, role-based access control, CRUD operations, production record management, smart employee reports, automated scoring logic, and backend tests.
+The system converts raw factory production data into meaningful management information through automatic scoring, role-based access, and structured reporting.
 
-The application is designed to represent a realistic company environment where each user role has a different responsibility and access level.
-
-## Project Purpose
-
-The main goal of this project is to convert factory production data into meaningful management information.
-
-The system helps answer questions such as:
-
-- Which employee produced which product?
-- Which machine was used during production?
-- How much was produced compared to the target?
-- How many defective products were detected?
-- Was the work completed on time?
-- Did the employee maintain attendance and punctuality?
-- Is the employee eligible for a bonus?
-- Is the employee a promotion candidate?
-- Which employee needs improvement or HR review?
-
-Instead of evaluating employee performance manually, the system calculates performance indicators automatically and creates structured reports for management.
+---
 
 ## Main Features
 
 ### Authentication
-
-The system includes secure login functionality. Users sign in with email and password. After login, the application stores the token locally and uses it for authorized API requests.
+Secure login with email and password. Token is stored locally and used for all authorized API requests.
 
 ### Role-Based Access Control
-
-The system uses role-based access control to make the application realistic and secure. Each role sees only the modules related to its responsibility.
-
-Supported roles are:
-
-- System Admin
-- Factory Manager
-- Production Supervisor
-- Quality Control Specialist
-- HR Specialist
-- Department Viewer
+Each role has defined module access. Backend enforces authorization independently of the frontend.
 
 ### Employee Management
-
-The employee module stores and manages employee information such as:
-
-- Full name
-- Employee code
-- Email
-- Position
-- Department
-- Hire date
-- Status
-
-Admin, Factory Manager, and HR Specialist can manage employees. Production Supervisor can view production-assignable employees but cannot create, edit, or delete employee records.
+Stores employee information including name, code, email, position, department, hire date, and status.
 
 ### Department Management
-
-The department module manages factory departments. Employees and machines are connected to departments using foreign key relationships.
-
-Admin, Factory Manager, and HR Specialist can access this module.
+Manages factory departments. Employees and machines are linked to departments via foreign keys.
 
 ### Product Management
-
-The product module stores product definitions such as:
-
-- Product code
-- Product name
-- Category
-- Standard unit
-- Target per shift
-- Status
-
-Admin and Factory Manager can manage products. Production and Quality users can view product definitions according to their role.
+Stores product definitions including code, name, category, unit, target per shift, and status.
 
 ### Machine Management
-
-The machine module stores production machine information such as:
-
-- Machine code
-- Machine name
-- Department
-- Status
-- Capacity per shift
-- Description
-
-Admin and Factory Manager can manage machines. Production Supervisor can view machines related to production operations.
+Stores machine information including code, name, department, status, capacity per shift, and description.
 
 ### Production Records
-
-Production Records are the core operational module of the system. Each production record connects:
-
-- Employee
-- Product
-- Machine
-- Record date
-- Period
-- Product type
-- Target quantity
-- Actual quantity
-- Defective quantity
-- On-time completion score
-- Planned work days
-- Absent days
-- Late days
-- Notes
-
-Production Supervisor can create and update production records. These records are later used by the system to calculate productivity, quality, continuity, bonus, and performance reports.
+Core operational module. Each record connects an employee, product, and machine with production metrics including actual quantity, defective quantity, on-time score, attendance, and absence data.
 
 ### Smart Employee Report Center
+Generates automated performance reports including efficiency score, performance decision, bonus status, promotion readiness, quality score, continuity score, and system-generated recommendations.
 
-Admin and Factory Manager can access the Reports module. The report center lists employees and allows management to open a detailed personal report for each employee.
-
-The personal report includes:
-
-- General efficiency score
-- Performance decision
-- Bonus status
-- Promotion status
-- Quality score
-- Continuity score
-- On-time completion score
-- Absence and late arrival data
-- Production target versus actual production
-- Department comparison
-- Trend analysis
-- Strengths
-- Areas for improvement
-- System-generated recommendation
-
-## Role-Based Access Details
-
-### System Admin
-
-System Admin has full system access.
-
-Visible modules:
-
-- Dashboard
-- Employees
-- Departments
-- Products
-- Machines
-- Production Records
-- Reports
-
-System Admin can manage all modules and view all operational and management data.
-
-### Factory Manager
-
-Factory Manager has full management visibility.
-
-Visible modules:
-
-- Dashboard
-- Employees
-- Departments
-- Products
-- Machines
-- Production Records
-- Reports
-
-Factory Manager can review bonus candidates, promotion candidates, employee reports, and factory performance indicators.
-
-### Production Supervisor
-
-Production Supervisor focuses on production operations.
-
-Visible modules:
-
-- Dashboard
-- Employees
-- Products
-- Machines
-- Production Records
-
-Hidden modules:
-
-- Departments
-- Reports
-
-Production Supervisor can:
-
-- View production-assignable active employees
-- View products used in production
-- View production machines
-- Create and update production records
-
-Production Supervisor cannot access HR reports, bonus reports, promotion reports, or department management.
-
-This design is intentional. The Production Supervisor should not see HR staff, system users, managers, or unrelated office staff. The role only sees employees who can be assigned to production operations.
-
-### Quality Control Specialist
-
-Quality Control Specialist focuses on product quality and production quality checks.
-
-Visible modules:
-
-- Dashboard
-- Products
-- Production Records
-
-Hidden modules:
-
-- Employees
-- Departments
-- Machines
-- Reports
-
-Quality Control Specialist can review products and production records from a quality-control perspective.
-
-### HR Specialist
-
-HR Specialist manages workforce-related data.
-
-Visible modules:
-
-- Dashboard
-- Employees
-- Departments
-
-Hidden modules:
-
-- Products
-- Machines
-- Production Records
-- Reports
-
-HR can manage employees and departments but cannot access production operation details or management reports.
-
-### Department Viewer
-
-Department Viewer is a read-only display user.
-
-Visible modules:
-
-- Dashboard only
-
-Department Viewer cannot create, update, delete, or access detailed management pages. This account is suitable for shared factory screens or monitoring boards.
-
-## Smart Performance Scoring Logic
-
-The system calculates employee performance using measurable production and attendance data.
-
-### Target Completion Score
-
-This score compares actual production quantity with target production quantity.
-
-Example:
-
-If the target quantity is 500 and the actual quantity is 475, the system calculates the completion percentage based on actual output.
-
-### Quality Score
-
-Quality score is calculated using defective quantity and actual production quantity.
-
-A lower defect rate results in a higher quality score.
-
-### Continuity Score
-
-Continuity score is calculated using:
-
-- Planned work days
-- Absent days
-- Late days
-
-Absence and late arrival reduce the continuity score.
-
-### On-Time Completion Score
-
-This score represents how successfully the employee completed work on time.
-
-### Overall Performance Score
-
-The overall performance score is calculated using weighted indicators:
-
-- Target completion
-- Quality
-- On-time completion
-- Continuity
-
-The final score is used for employee performance classification.
-
-## Automatic Report Decisions
-
-The system automatically generates badges and decisions based on employee performance.
-
-Example badges:
-
-- Bonus Earned
-- Promotion Candidate
-- Star of the Month
-- Needs Improvement
-- Stable Performance
-
-Example system decisions:
-
-- Outstanding Performer
-- High Performer
-- Stable Performer
-- Needs Improvement
-- Critical Review Required
-
-These automatic results support management decision-making.
-
-## Bonus and Promotion Logic
-
-### Bonus Eligibility
-
-An employee can become bonus eligible when performance, quality, and continuity scores meet the required thresholds.
-
-The report shows:
-
-- Bonus status
-- Bonus band
-- Missing score needed for bonus eligibility
-
-### Promotion Evaluation
-
-Promotion readiness is evaluated using:
-
-- Overall performance score
-- Quality score
-- Continuity score
-- On-time completion score
-
-The report also shows the promotion criteria completion percentage.
+---
 
 ## Technology Stack
 
 ### Backend
-
 - Node.js
 - Express.js
 - SQLite
-- JWT-based authentication
-- RESTful API structure
-- Modular backend architecture
+- JWT Authentication
+- RESTful API
+- Modular layered architecture (Controller → Service → Repository)
 
 ### Frontend
-
-- HTML
-- CSS
-- JavaScript
+- HTML, CSS, Vanilla JavaScript
 - Dynamic role-based interface
 - LocalStorage token management
-- Responsive dashboard and report pages
+- Single-page application (no frameworks)
 
 ### Testing
-
 - Jest
-- Unit tests
-- Validator tests
-- Business logic tests
+- Unit tests for validators and business logic
+- 51 tests passing across 8 test suites
+
+---
 
 ## Software Architecture
 
-The project follows a layered architecture.
+The project follows a layered architecture pattern:
 
-### Controller Layer
+```
+HTTP Request
+     │
+     ▼
+ Controller        → Handles HTTP request/response
+     │
+     ▼
+  Service          → Contains business logic
+     │
+     ▼
+ Repository        → Handles database queries
+     │
+     ▼
+  Database         → SQLite
+```
 
-Controllers handle HTTP requests and responses.
+### Layers
 
-Main controllers:
+**Controller Layer** — authController, employeeController, departmentController, productController, machineController, productionRecordController, reportController
 
-- Auth Controller
-- Employee Controller
-- Department Controller
-- Product Controller
-- Machine Controller
-- Production Record Controller
-- Report Controller
+**Service Layer** — authService, employeeService, departmentService, productService, machineService, productionRecordService, reportService, performanceCalculator, recommendationService
 
-### Service Layer
+**Repository Layer** — employeeRepository, departmentRepository, productRepository, machineRepository, productionRecordRepository, reportRepository
 
-Services contain business logic.
+**Validator Layer** — authValidator, employeeValidator, departmentValidator, productValidator, machineValidator, productionRecordValidator
 
-Main responsibilities:
+---
 
-- Authentication logic
-- Performance calculation
-- Recommendation generation
-- Production record enrichment
-- Role-based data filtering
-- Smart report generation
+## Role-Based Access Control
 
-### Repository Layer
+| Role | Dashboard | Employees | Departments | Products | Machines | Production Records | Reports |
+|---|---|---|---|---|---|---|---|
+| System Admin | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Factory Manager | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Production Supervisor | ✅ | ✅ | ❌ | ✅ | ✅ | ✅ | ❌ |
+| Quality Control | ✅ | ❌ | ❌ | ✅ | ❌ | ✅ | ❌ |
+| HR Specialist | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Department Viewer | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
 
-Repositories handle database queries.
+---
 
-Main repositories:
+## Smart Performance Scoring
 
-- Employee Repository
-- Department Repository
-- Product Repository
-- Machine Repository
-- Production Record Repository
-- Report Repository
+The system automatically calculates performance using weighted indicators:
 
-### Validator Layer
+| Indicator | Description |
+|---|---|
+| Target Completion | Actual vs target production quantity |
+| Quality Score | Defect rate relative to actual production |
+| Continuity Score | Attendance minus absences and late arrivals |
+| On-Time Completion | Timeliness of work completion |
+| Overall Score | Weighted combination of all indicators |
 
-Validators check input data before processing.
+Automatic report decisions: Outstanding Performer, High Performer, Stable Performer, Needs Improvement, Critical Review Required.
 
-Main validators:
+Automatic badges: Bonus Earned, Promotion Candidate, Star of the Month, Needs Improvement, Stable Performance.
 
-- Auth Validator
-- Employee Validator
-- Department Validator
-- Product Validator
-- Machine Validator
-- Production Record Validator
+---
 
 ## API Overview
 
-### Authentication Endpoints
+### Authentication
+```
+POST   /api/auth/login
+POST   /api/auth/register
+```
 
-- POST /api/auth/login
-- POST /api/auth/register
+### Employees
+```
+GET    /api/employees
+GET    /api/employees/:id
+POST   /api/employees
+PUT    /api/employees/:id
+DELETE /api/employees/:id
+```
 
-### Employee Endpoints
+### Departments
+```
+GET    /api/departments
+POST   /api/departments
+PUT    /api/departments/:id
+DELETE /api/departments/:id
+```
 
-- GET /api/employees
-- GET /api/employees/:id
-- POST /api/employees
-- PUT /api/employees/:id
-- DELETE /api/employees/:id
+### Products
+```
+GET    /api/products
+GET    /api/products/:id
+POST   /api/products
+PUT    /api/products/:id
+DELETE /api/products/:id
+```
 
-### Department Endpoints
+### Machines
+```
+GET    /api/machines
+GET    /api/machines/:id
+POST   /api/machines
+PUT    /api/machines/:id
+DELETE /api/machines/:id
+```
 
-- GET /api/departments
-- POST /api/departments
-- PUT /api/departments/:id
-- DELETE /api/departments/:id
+### Production Records
+```
+GET    /api/production-records
+GET    /api/production-records/:id
+POST   /api/production-records
+PUT    /api/production-records/:id
+DELETE /api/production-records/:id
+```
 
-### Product Endpoints
+### Reports
+```
+GET    /api/reports/summary
+GET    /api/reports/top-performers
+GET    /api/reports/bonus-eligible
+GET    /api/reports/promotion-candidates
+GET    /api/reports/hr-review-required
+GET    /api/reports/department-performance
+```
 
-- GET /api/products
-- POST /api/products
-- PUT /api/products/:id
-- DELETE /api/products/:id
+> Reports are restricted to System Admin and Factory Manager roles.
 
-### Machine Endpoints
+---
 
-- GET /api/machines
-- POST /api/machines
-- PUT /api/machines/:id
-- DELETE /api/machines/:id
+## Swagger API Documentation
 
-### Production Record Endpoints
+The backend includes interactive Swagger API documentation using `swagger-ui-express` and `swagger-jsdoc`.
 
-- GET /api/production-records
-- GET /api/production-records/:id
-- POST /api/production-records
-- PUT /api/production-records/:id
-- DELETE /api/production-records/:id
+After starting the backend server, open:
 
-### Report Endpoints
+```
+http://localhost:5001/api-docs
+```
 
-- GET /api/reports/summary
-- GET /api/reports/top-performers
-- GET /api/reports/bonus-eligible
-- GET /api/reports/promotion-candidates
-- GET /api/reports/hr-review-required
-- GET /api/reports/department-performance
+The Swagger interface allows full interactive API testing and endpoint exploration directly from the browser.
 
-Reports are restricted to System Admin and Factory Manager.
+### How to test via Swagger
 
-## Demo Users
+1. Open `http://localhost:5001/api-docs`
+2. Find `POST /api/auth/login` → click **Try it out**
+3. Enter credentials and click **Execute**
+4. Copy the `token` from the response
+5. Click **Authorize** (top right) and enter: `Bearer YOUR_TOKEN`
+6. All protected endpoints are now accessible for testing
 
-All demo users use the same password:
+---
 
-    TatLee123
+## Database Design
 
-System Admin:
+The project uses **SQLite** as the relational database.
 
-- Email: admin@tatleefactory.com
-- Access: Full system access
+### Main Tables
 
-Factory Manager:
+| Table | Description |
+|---|---|
+| users | System user accounts and roles |
+| employees | Factory employee records |
+| departments | Factory department definitions |
+| products | Product catalog |
+| machines | Production machines |
+| production_records | Daily production operation logs |
 
-- Email: manager@tatleefactory.com
-- Access: Full management access
+### Relationships
+- Employees belong to departments
+- Machines belong to departments
+- Production records connect employees, products, and machines via foreign keys
 
-Production Supervisor:
+---
 
-- Email: production@tatleefactory.com
-- Access: Production-focused access
+## Security and Authorization
 
-Quality Control Specialist:
+The system uses **JWT-based authentication**.
 
-- Email: quality@tatleefactory.com
-- Access: Quality-focused access
+Protected routes verify:
+- Token validity and expiry
+- User ownership (data isolation per user)
+- Role permissions (RBAC enforcement)
 
-HR Specialist:
+Unauthorized users cannot access restricted modules even if frontend routes are manually entered. Backend authorization is enforced independently of frontend visibility.
 
-- Email: hr@tatleefactory.com
-- Access: Employee and department access
-
-Department Viewer:
-
-- Email: viewer@tatleefactory.com
-- Access: Read-only dashboard access
+---
 
 ## Installation and Running
 
+### Prerequisites
+- Node.js v18+
+- npm
+- Python 3 (for frontend server)
+
 ### Backend Setup
 
-Go to the backend folder:
+```bash
+cd backend
+npm install
+npm run dev
+```
 
-    cd backend
-
-Install dependencies:
-
-    npm install
-
-Start the backend server:
-
-    npm run dev
-
-Backend runs on:
-
-    http://localhost:5001
-
-API base URL:
-
-    http://localhost:5001/api
+Backend runs on: `http://localhost:5001`  
+API base URL: `http://localhost:5001/api`  
+Swagger docs: `http://localhost:5001/api-docs`
 
 ### Frontend Setup
 
-Go to the frontend folder:
+```bash
+cd frontend
+python3 -m http.server 5501
+```
 
-    cd frontend
+Frontend runs on: `http://localhost:5501`
 
-Start a local frontend server:
-
-    python3 -m http.server 5501
-
-Frontend runs on:
-
-    http://localhost:5501
+---
 
 ## Running Tests
 
-Go to the backend folder:
+```bash
+cd backend
+npm test
+```
 
-    cd backend
+### Test Results
 
-Run tests:
+```
+Test Suites: 8 passed, 8 total
+Tests:       51 passed, 51 total
+```
 
-    npm test
+### Test Coverage
 
-Current test status:
+| Suite | Description |
+|---|---|
+| authService | Authentication logic |
+| performanceCalculator | Score calculation logic |
+| recommendationService | Automated recommendation logic |
+| employeeValidator | Employee input validation |
+| departmentValidator | Department input validation |
+| productValidator | Product input validation |
+| machineValidator | Machine input validation |
+| productionRecordValidator | Production record validation |
 
-- Test Suites: 8 passed, 8 total
-- Tests: 51 passed, 51 total
+---
 
-The tests cover:
+## Demo Users
 
-- Authentication service
-- Performance calculation
-- Recommendation service
-- Employee validation
-- Department validation
-- Product validation
-- Machine validation
-- Production record validation
+All demo users share the same password: `TatLee123`
+
+| Role | Email |
+|---|---|
+| System Admin | admin@tatleefactory.com |
+| Factory Manager | manager@tatleefactory.com |
+| Production Supervisor | production@tatleefactory.com |
+| Quality Control | quality@tatleefactory.com |
+| HR Specialist | hr@tatleefactory.com |
+| Department Viewer | viewer@tatleefactory.com |
+
+---
 
 ## Project Structure
 
-    employee-productivity-operational-performance-system/
-    |
-    |-- backend/
-    |   |-- src/
-    |   |   |-- config/
-    |   |   |-- controllers/
-    |   |   |-- middlewares/
-    |   |   |-- repositories/
-    |   |   |-- routes/
-    |   |   |-- services/
-    |   |   |-- validators/
-    |   |   |-- server.js
-    |   |
-    |   |-- tests/
-    |   |-- scripts/
-    |   |-- package.json
-    |   |-- database.sqlite
-    |
-    |-- frontend/
-    |   |-- index.html
-    |   |-- app.js
-    |   |-- style.css
-    |
-    |-- README.md
+```
+employee-productivity-operational-performance-system/
+│
+├── backend/
+│   ├── src/
+│   │   ├── config/
+│   │   ├── controllers/
+│   │   ├── middleware/
+│   │   ├── repositories/
+│   │   ├── routes/
+│   │   ├── services/
+│   │   ├── validators/
+│   │   ├── app.js
+│   │   └── server.js
+│   ├── tests/
+│   ├── scripts/
+│   ├── package.json
+│   └── database.sqlite
+│
+├── frontend/
+│   ├── index.html
+│   ├── app.js
+│   └── style.css
+│
+└── README.md
+```
 
-## Professional System Behavior
+---
 
-This project is designed to behave like a realistic company system.
+## Screenshots
 
-Important behavior examples:
+The project includes screenshots demonstrating:
 
-- Production Supervisor cannot access HR reports.
-- HR cannot access production operation modules.
-- Quality Control cannot manage employees.
-- Viewer cannot edit any data.
-- Admin and Factory Manager can access smart employee reports.
-- Reports are generated from measurable production records.
-- Role-based menus prevent unauthorized access.
-- Backend access rules protect sensitive data even if frontend menus are hidden.
+- Login screen
+- Role-based dashboards
+- Employee management
+- Machine management
+- Product management
+- Production records
+- Smart employee reports
+- Swagger API documentation
+- Jest test results
 
-## Final Project Highlights
+---
 
-This project demonstrates:
+## GitHub Repository
 
-- Full-stack web application development
-- Secure login and authentication
-- Role-based access control
-- CRUD operations
+[https://github.com/ismailtatli/employee-productivity-operational-performance-system](https://github.com/ismailtatli/employee-productivity-operational-performance-system)
+
+---
+
+## Conclusion
+
+This project demonstrates a realistic full-stack operational management platform rather than a basic CRUD application.
+
+The system combines:
+
+- RESTful API architecture
+- Role-based authorization (6 roles)
+- Smart employee performance evaluation
 - Production data management
-- Smart scoring and report generation
-- Professional dashboard design
-- Modular backend architecture
-- Automated backend tests
-- Realistic factory workflow modeling
+- Quality and continuity analysis
+- Automated reporting and decision support
+- JWT authentication
+- Modular layered backend architecture
+- Interactive Swagger documentation
+- Automated unit testing (51 tests)
 
-## Final Notes
-
-This project is not only a CRUD application. It includes business rules, role-based authorization, automatic performance scoring, decision support, and smart employee reporting.
-
-The system shows how raw production data can be converted into meaningful management insights such as bonus eligibility, promotion readiness, performance trends, quality analysis, and HR follow-up recommendations.
+The application was designed to simulate real-world factory operations and management workflows in a professional environment.
