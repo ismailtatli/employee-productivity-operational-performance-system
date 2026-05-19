@@ -1,0 +1,106 @@
+Project Name:
+Employee Productivity and Operational Performance Management System
+
+Company / Scenario:
+TatLee Factory
+
+Project Type:
+Role-based factory productivity and operational performance management web application.
+
+GitHub Repository:
+https://github.com/ismailtatli/employee-productivity-operational-performance-system
+
+Backend Technology:
+Node.js, Express.js, SQLite, JWT Authentication
+
+Frontend Technology:
+HTML, CSS, JavaScript
+
+Backend Setup:
+1. Open terminal.
+2. Go to the backend folder:
+   cd backend
+
+3. Install dependencies:
+   npm install
+
+4. Start backend server:
+   npm run dev
+
+Backend URL:
+http://localhost:5001
+
+API Base URL:
+http://localhost:5001/api
+
+Frontend Setup:
+1. Open another terminal.
+2. Go to the frontend folder:
+   cd frontend
+
+3. Start local frontend server:
+   python3 -m http.server 5501
+
+Frontend URL:
+http://localhost:5501
+
+Demo Login Information:
+All demo users use the same password:
+TatLee123
+
+System Admin:
+admin@tatleefactory.com
+
+Factory Manager:
+manager@tatleefactory.com
+
+Production Supervisor:
+production@tatleefactory.com
+
+Quality Control Specialist:
+quality@tatleefactory.com
+
+HR Specialist:
+hr@tatleefactory.com
+
+Department Viewer:
+viewer@tatleefactory.com
+
+Role-Based Access Notes:
+- System Admin has full system access.
+- Factory Manager has full management and report access.
+- Production Supervisor can access production-focused modules.
+- Quality Control Specialist can access quality-related production data.
+- HR Specialist can manage employees and departments.
+- Department Viewer has dashboard-only read access.
+- Reports are restricted to System Admin and Factory Manager.
+
+Main Features:
+- Secure login and token-based authentication.
+- Role-based sidebar and dashboard.
+- Employee management.
+- Department management.
+- Product management.
+- Machine management.
+- Production record management.
+- Smart employee performance reports.
+- Bonus eligibility and promotion candidate logic.
+- Quality, continuity, on-time completion and performance scoring.
+- Automated backend tests.
+
+Testing:
+To run backend tests:
+
+cd backend
+npm test
+
+Current Test Status:
+8 test suites passed.
+51 tests passed.
+
+Important Notes:
+- Backend must be running before using the frontend.
+- Frontend uses API base URL: http://localhost:5001/api
+- The project is designed for local demonstration.
+- For best demo experience, use Google Chrome.
+- If the frontend does not update after changes, use a hard refresh.
