@@ -33,10 +33,16 @@ async function apiRequest(path, options = {}) {
     headers.Authorization = `Bearer ${state.token}`;
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers
-  });
+  let response;
+
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      ...options,
+      headers
+    });
+  } catch (error) {
+    throw new Error("API connection failed. Please make sure the backend server is running on port 5001.");
+  }
 
   const data = await response.json().catch(() => ({}));
 
@@ -100,6 +106,67 @@ function getRoleDescription(role) {
   return descriptions[role] || "Authorized system user.";
 }
 
+
+function getRoleDisplayName(role) {
+  const roleNames = {
+    Admin: "System Admin",
+    Manager: "Factory Manager",
+    Production: "Production Supervisor",
+    Quality: "Quality Control Specialist",
+    HR: "HR Specialist",
+    Viewer: "Department Viewer"
+  };
+
+  return roleNames[role] || role || "Authorized User";
+}
+
+function getRoleDescription(role) {
+  const descriptions = {
+    Admin: "Full system administration, configuration and operational control.",
+    Manager: "Factory-wide operational management and performance review.",
+    Production: "Production output, product usage and machine operation tracking.",
+    Quality: "Defect tracking, quality control and production quality review.",
+    HR: "Employee records, workforce status and continuity monitoring.",
+    Viewer: "Read-only access to limited operational summaries."
+  };
+
+  return descriptions[role] || "Authorized factory portal user.";
+}
+
+function getAllowedViewsByRole(role) {
+  const permissions = {
+    Admin: ["dashboard", "employees", "departments", "products", "machines", "production", "reports"],
+    Manager: ["dashboard", "employees", "departments", "products", "machines", "production", "reports"],
+    Production: ["dashboard", "products", "machines", "production"],
+    Quality: ["dashboard", "products", "production", "reports"],
+    HR: ["dashboard", "employees", "departments", "reports"],
+    Viewer: ["dashboard", "reports"]
+  };
+
+  return permissions[role] || ["dashboard"];
+}
+
+function canAccessView(view) {
+  return getAllowedViewsByRole(state.user?.role).includes(view);
+}
+
+function renderNavigationMenu() {
+  const navItems = [
+    { view: "dashboard", label: "Dashboard" },
+    { view: "employees", label: "Employees" },
+    { view: "departments", label: "Departments" },
+    { view: "products", label: "Products" },
+    { view: "machines", label: "Machines" },
+    { view: "production", label: "Production Records" },
+    { view: "reports", label: "Reports" }
+  ];
+
+  return navItems
+    .filter((item) => canAccessView(item.view))
+    .map((item) => navButton(item.view, item.label))
+    .join("");
+}
+
 function showMessage(element, text, type) {
   element.textContent = text;
   element.className = `message ${type}`;
@@ -115,28 +182,27 @@ function renderLogin() {
         <div>
           <div class="brand-badge">
             <div class="brand-mark">TF</div>
-            <span>Authorized Factory Management Portal</span>
+            <span>Internal Factory Operations Portal</span>
           </div>
 
-          <h1>Employee productivity, operational control and data ownership in one secure system.</h1>
+          <h1>TatLee Factory Workforce & Operations Management Portal</h1>
           <p>
-            TatLee Factory uses this platform to manage user-specific operational data,
-            employee performance, production outputs, quality indicators, continuity scores,
-            performance recommendations and management reports through JWT-based secure access.
+            A secure internal platform for managing workforce records, production operations,
+            machine usage, quality indicators and role-based performance reports.
           </p>
 
           <div class="login-highlights">
             <div class="highlight-card">
-              <strong>JWT</strong>
-              <span>Secure login and registration with token-based access</span>
+              <strong>Secure Access</strong>
+              <span>JWT-based login and registration for authorized factory users</span>
             </div>
             <div class="highlight-card">
-              <strong>Isolation</strong>
-              <span>Each user can access only their own operational records</span>
+              <strong>Role-Based Control</strong>
+              <span>Each role sees only the modules required for its responsibility</span>
             </div>
             <div class="highlight-card">
-              <strong>Reports</strong>
-              <span>Bonus, promotion, monitoring and HR review recommendations</span>
+              <strong>Operational Reports</strong>
+              <span>Automatic performance, quality, continuity and HR-oriented reports</span>
             </div>
           </div>
         </div>
@@ -155,12 +221,12 @@ function renderLogin() {
             </button>
           </div>
 
-          <h2>${isRegisterMode ? "Create account" : "Secure access"}</h2>
+          <h2>${isRegisterMode ? "Create authorized account" : "Secure access"}</h2>
           <p class="subtitle">
             ${
               isRegisterMode
-                ? "Create a new account. Each user receives a private workspace with isolated records."
-                : "Sign in to monitor productivity, quality, continuity and operational performance reports."
+                ? "Create a role-based factory account. New users receive a private isolated workspace."
+                : "Sign in to access your role-based factory operations dashboard."
             }
           </p>
 
@@ -171,7 +237,7 @@ function renderLogin() {
               ? `
                 <div class="form-group">
                   <label>Full Name</label>
-                  <input class="form-control" id="registerFullName" type="text" placeholder="Example: New Test User" />
+                  <input class="form-control" id="registerFullName" type="text" placeholder="Example: Factory Operations User" />
                 </div>
               `
               : ""
@@ -184,7 +250,7 @@ function renderLogin() {
               id="${isRegisterMode ? "registerEmail" : "email"}" 
               type="email" 
               value="${isRegisterMode ? "" : "admin@tatleefactory.com"}"
-              placeholder="example@tatleefactory.com"
+              placeholder="name@tatleefactory.com"
             />
           </div>
 
@@ -203,7 +269,7 @@ function renderLogin() {
             isRegisterMode
               ? `
                 <div class="form-group">
-                  <label>Role</label>
+                  <label>Factory Role</label>
                   <select class="form-control" id="registerRole">
                     <option value="Manager">Factory Manager</option>
                     <option value="Production">Production Supervisor</option>
@@ -224,20 +290,20 @@ function renderLogin() {
             isRegisterMode
               ? `
                 <div class="demo-box">
-                  <strong>Data isolation note</strong><br />
-                  After registration, this user receives a separate workspace.
-                  Admin data and other users’ records will not be visible to this account.
+                  <strong>Private workspace policy</strong><br />
+                  Each account can access only its own operational records.
+                  Company data is protected by JWT authentication and user-based data isolation.
                 </div>
               `
               : `
                 <div class="demo-box">
                   <strong>Demo users</strong><br />
-                  admin@tatleefactory.com · Admin<br />
-                  manager@tatleefactory.com · Manager<br />
-                  production@tatleefactory.com · Production<br />
-                  quality@tatleefactory.com · Quality Control Specialist<br />
-                  hr@tatleefactory.com · HR Specialist<br />
-                  viewer@tatleefactory.com · Department Viewer<br />
+                  System Admin: admin@tatleefactory.com<br />
+                  Factory Manager: manager@tatleefactory.com<br />
+                  Production Supervisor: production@tatleefactory.com<br />
+                  Quality Control Specialist: quality@tatleefactory.com<br />
+                  HR Specialist: hr@tatleefactory.com<br />
+                  Department Viewer: viewer@tatleefactory.com<br />
                   Password: TatLee123
                 </div>
               `
@@ -362,13 +428,7 @@ function renderApp() {
         </div>
 
         <nav class="nav-menu">
-          ${navButton("dashboard", "Dashboard")}
-          ${navButton("employees", "Employees")}
-          ${navButton("departments", "Departments")}
-          ${navButton("products", "Products")}
-          ${navButton("machines", "Machines")}
-          ${navButton("production", "Production Records")}
-          ${navButton("reports", "Reports")}
+          ${renderNavigationMenu()}
         </nav>
 
         <div class="sidebar-footer">
@@ -417,6 +477,10 @@ function updateActiveNav() {
 }
 
 function renderCurrentView() {
+  if (!canAccessView(state.currentView)) {
+    state.currentView = "dashboard";
+  }
+
   if (state.currentView === "dashboard") renderDashboard();
   if (state.currentView === "employees") renderEmployees();
   if (state.currentView === "departments") renderDepartments();
@@ -2580,11 +2644,13 @@ async function deleteProductionRecord(id) {
 
 async function renderReports() {
   const view = document.getElementById("view");
+  const role = state.user.role;
+  const roleName = getRoleDisplayName(role);
 
   view.innerHTML = `
     ${renderTopbar(
-      "Reports",
-      "Detailed operational reports for employee productivity, performance decisions and department analysis."
+      `${roleName} Reports`,
+      "Loading role-specific operational reports..."
     )}
 
     <div class="loading">Loading reports...</div>
@@ -2617,71 +2683,271 @@ async function renderReports() {
     const hrReviewRequired = hrReviewResponse.data;
     const departments = departmentResponse.data;
 
-    view.innerHTML = `
-      ${renderTopbar(
-        "Reports",
-        "Detailed operational reports for employee productivity, performance decisions and department analysis."
-      )}
+    const emptyState = hasNoWorkspaceData(summary)
+      ? renderWorkspaceEmptyState(role)
+      : "";
 
-      <section class="card-grid">
-        ${metricCard("Total Employees", summary.totalEmployees)}
-        ${metricCard("Production Records", summary.totalProductionRecords)}
-        ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
-        ${metricCard("Avg. Quality", summary.averageQualityScore)}
-        ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
-        ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
-        ${metricCard("Promotion Candidates", summary.promotionCandidateCount)}
-        ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
-      </section>
+    if (isExecutiveRole()) {
+      view.innerHTML = `
+        ${renderTopbar(
+          "Executive Performance Reports",
+          "Detailed decision reports for productivity, bonus eligibility, promotion candidates and HR review."
+        )}
 
-      <section class="content-grid">
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Top Performers</h3>
+        <section class="card-grid">
+          ${metricCard("Total Employees", summary.totalEmployees)}
+          ${metricCard("Production Records", summary.totalProductionRecords)}
+          ${metricCard("Avg. Performance", summary.averagePerformanceScore)}
+          ${metricCard("Avg. Quality", summary.averageQualityScore)}
+          ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
+          ${metricCard("Bonus Eligible", summary.bonusEligibleCount)}
+          ${metricCard("Promotion Candidates", summary.promotionCandidateCount)}
+          ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
+        </section>
+
+        ${emptyState}
+
+        <section class="content-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Executive Decision Summary</h3>
+            </div>
+            ${renderExecutiveDecisionSummary(summary)}
           </div>
-          ${renderReportRecordTable(topPerformers, "No top performer records found.")}
-        </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Bonus Eligible Employees</h3>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Department Performance Chart</h3>
+            </div>
+            ${renderSimpleBarChart("Average Score by Department", departments, "averagePerformanceScore", "departmentName")}
           </div>
-          ${renderReportRecordTable(bonusEligible, "No bonus eligible employees found.")}
-        </div>
-      </section>
+        </section>
 
-      <section class="content-grid" style="margin-top:22px;">
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Promotion Candidates</h3>
+        <section class="content-grid" style="margin-top:22px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Top Performers</h3>
+            </div>
+            ${renderReportRecordTable(topPerformers, "No top performer records found.")}
           </div>
-          ${renderReportRecordTable(promotionCandidates, "No promotion candidates found.")}
-        </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Low Continuity Employees</h3>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Bonus Eligible Employees</h3>
+            </div>
+            ${renderReportRecordTable(bonusEligible, "No bonus eligible employees found.")}
           </div>
-          ${renderContinuityTable(lowContinuity)}
-        </div>
-      </section>
+        </section>
 
-      <section class="content-grid" style="margin-top:22px;">
-        <div class="panel">
-          <div class="panel-header">
-            <h3>HR Review Required</h3>
+        <section class="content-grid" style="margin-top:22px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Promotion Candidates</h3>
+            </div>
+            ${renderReportRecordTable(promotionCandidates, "No promotion candidates found.")}
           </div>
-          ${renderReportRecordTable(hrReviewRequired, "No HR review required records found.")}
-        </div>
 
-        <div class="panel">
-          <div class="panel-header">
-            <h3>Department Performance</h3>
+          <div class="panel">
+            <div class="panel-header">
+              <h3>HR Review Required</h3>
+            </div>
+            ${renderReportRecordTable(hrReviewRequired, "No HR review required records found.")}
           </div>
-          ${renderDepartmentReportTable(departments)}
-        </div>
-      </section>
-    `;
+        </section>
+
+        <section class="content-grid" style="margin-top:22px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Low Continuity Employees</h3>
+            </div>
+            ${renderContinuityTable(lowContinuity)}
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Department Performance Table</h3>
+            </div>
+            ${renderDepartmentReportTable(departments)}
+          </div>
+        </section>
+      `;
+      return;
+    }
+
+    if (isProductionRole()) {
+      view.innerHTML = `
+        ${renderTopbar(
+          "Production Reports",
+          "Production output, machine usage and target-vs-actual operational summary."
+        )}
+
+        <section class="card-grid">
+          ${metricCard("Production Records", summary.totalProductionRecords)}
+          ${metricCard("Actual Production", summary.totalActualProduction)}
+          ${metricCard("Defective Quantity", summary.totalDefectiveQuantity)}
+          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
+        </section>
+
+        ${emptyState}
+
+        <section class="content-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Production Output Chart</h3>
+            </div>
+            ${renderSimpleBarChart("Actual Production by Department", departments, "totalActualProduction", "departmentName")}
+          </div>
+
+          ${renderRoleInfoPanel(
+            "Restricted Decision Data",
+            "Production Supervisors can review production activity, products and machines. Employee bonus, promotion and HR decision reports are intentionally hidden.",
+            [
+              "Can monitor production volume and operational output.",
+              "Can work with products, machines and production records.",
+              "Cannot access sensitive employee decision reports."
+            ]
+          )}
+        </section>
+
+        <section class="panel" style="margin-top:22px;">
+          <div class="panel-header">
+            <h3>Department Production Summary</h3>
+          </div>
+          ${renderProductionDepartmentReportTable(departments)}
+        </section>
+      `;
+      return;
+    }
+
+    if (isQualityRole()) {
+      view.innerHTML = `
+        ${renderTopbar(
+          "Quality Control Reports",
+          "Defect tracking, quality score monitoring and quality risk review."
+        )}
+
+        <section class="card-grid">
+          ${metricCard("Production Records", summary.totalProductionRecords)}
+          ${metricCard("Total Defects", summary.totalDefectiveQuantity)}
+          ${metricCard("Avg. Quality", summary.averageQualityScore)}
+          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
+        </section>
+
+        ${emptyState}
+
+        <section class="content-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Defect Quantity Chart</h3>
+            </div>
+            ${renderSimpleBarChart("Defects by Department", departments, "totalDefectiveQuantity", "departmentName")}
+          </div>
+
+          ${renderRoleInfoPanel(
+            "Quality Report Scope",
+            "Quality Control Specialists focus on defect levels, quality score and production quality risks. Bonus and promotion decisions are hidden.",
+            [
+              "Can review production quality indicators.",
+              "Can monitor defective quantity and quality score.",
+              "Cannot access HR-sensitive bonus or promotion decisions."
+            ]
+          )}
+        </section>
+
+        <section class="panel" style="margin-top:22px;">
+          <div class="panel-header">
+            <h3>Department Quality Summary</h3>
+          </div>
+          ${renderQualityDepartmentReportTable(departments)}
+        </section>
+      `;
+      return;
+    }
+
+    if (isHrRole()) {
+      view.innerHTML = `
+        ${renderTopbar(
+          "HR Workforce Reports",
+          "Employee status, workforce continuity, absence and HR review monitoring."
+        )}
+
+        <section class="card-grid">
+          ${metricCard("Total Employees", summary.totalEmployees)}
+          ${metricCard("Active Employees", summary.activeEmployees)}
+          ${metricCard("Inactive Employees", summary.inactiveEmployees)}
+          ${metricCard("Avg. Continuity", summary.averageContinuityScore)}
+          ${metricCard("HR Review Required", summary.hrReviewRequiredCount)}
+          ${metricCard("Low Continuity Records", lowContinuity.length)}
+        </section>
+
+        ${emptyState}
+
+        <section class="content-grid">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Continuity Risk Employees</h3>
+            </div>
+            ${renderContinuityTable(lowContinuity)}
+          </div>
+
+          <div class="panel">
+            <div class="panel-header">
+              <h3>HR Review Required</h3>
+            </div>
+            ${renderHrReviewTable(hrReviewRequired)}
+          </div>
+        </section>
+
+        <section class="content-grid" style="margin-top:22px;">
+          <div class="panel">
+            <div class="panel-header">
+              <h3>Department Workforce Chart</h3>
+            </div>
+            ${renderSimpleBarChart("Records by Department", departments, "recordCount", "departmentName")}
+          </div>
+
+          ${renderRoleInfoPanel(
+            "HR Report Scope",
+            "HR Specialists focus on employees, department distribution, continuity risk and HR follow-up needs. Product and machine management reports are hidden.",
+            [
+              "Can review employee continuity and HR review indicators.",
+              "Can monitor active and inactive employee status.",
+              "Cannot manage production machines or product targets."
+            ]
+          )}
+        </section>
+      `;
+      return;
+    }
+
+    if (isViewerRole()) {
+      view.innerHTML = `
+        ${renderTopbar(
+          "Summary Reports",
+          "Read-only limited report summary for department viewers."
+        )}
+
+        <section class="card-grid">
+          ${metricCard("Total Employees", summary.totalEmployees)}
+          ${metricCard("Production Records", summary.totalProductionRecords)}
+          ${metricCard("Actual Production", summary.totalActualProduction)}
+          ${metricCard("Avg. On-Time Score", summary.averageOnTimeCompletionScore)}
+        </section>
+
+        ${emptyState}
+
+        ${renderRoleInfoPanel(
+          "Limited Report Access",
+          "Department Viewers can access only high-level summaries. Sensitive employee scores, bonus decisions and promotion recommendations are hidden.",
+          [
+            "Read-only report access.",
+            "No employee decision details.",
+            "No create, update or delete permissions."
+          ]
+        )}
+      `;
+      return;
+    }
   } catch (error) {
     view.innerHTML = `
       ${renderTopbar("Reports", "Unable to load report data.")}
@@ -2689,6 +2955,147 @@ async function renderReports() {
     `;
   }
 }
+
+
+function renderExecutiveDecisionSummary(summary) {
+  const riskLevel =
+    Number(summary.hrReviewRequiredCount || 0) > 0
+      ? "Attention Required"
+      : Number(summary.averagePerformanceScore || 0) >= 85
+      ? "Strong"
+      : "Monitor";
+
+  return `
+    <div class="decision-summary">
+      <div class="decision-summary-item">
+        <span>Operational Risk Level</span>
+        <strong>${riskLevel}</strong>
+      </div>
+      <div class="decision-summary-item">
+        <span>Management Focus</span>
+        <strong>${summary.hrReviewRequiredCount > 0 ? "HR Review" : "Performance Growth"}</strong>
+      </div>
+      <div class="decision-summary-item">
+        <span>Automated Decision Support</span>
+        <strong>Enabled</strong>
+      </div>
+    </div>
+    <p class="empty-state-text" style="margin-top:14px;">
+      The report engine automatically evaluates production output, quality indicators,
+      continuity data and on-time completion scores to support management decisions.
+    </p>
+  `;
+}
+
+function renderProductionDepartmentReportTable(departments) {
+  if (!departments.length) {
+    return `<p class="loading">No production department data found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Department</th>
+            <th>Records</th>
+            <th>Total Production</th>
+            <th>Defective Quantity</th>
+            <th>Avg. On-Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${departments.map((department) => `
+            <tr>
+              <td><strong>${department.departmentName}</strong></td>
+              <td>${department.recordCount}</td>
+              <td><strong>${department.totalActualProduction}</strong></td>
+              <td>${department.totalDefectiveQuantity || 0}</td>
+              <td>${department.averageOnTimeCompletionScore || 0}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderQualityDepartmentReportTable(departments) {
+  if (!departments.length) {
+    return `<p class="loading">No quality department data found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Department</th>
+            <th>Records</th>
+            <th>Defects</th>
+            <th>Avg. Quality</th>
+            <th>Risk</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${departments.map((department) => {
+            const defects = Number(department.totalDefectiveQuantity || 0);
+            const risk = defects > 100 ? "High" : defects > 30 ? "Medium" : "Low";
+
+            return `
+              <tr>
+                <td><strong>${department.departmentName}</strong></td>
+                <td>${department.recordCount}</td>
+                <td>${defects}</td>
+                <td><strong>${department.averageQualityScore || 0}</strong></td>
+                <td><span class="badge ${risk === "High" ? "badge-danger" : risk === "Medium" ? "badge-warning" : "badge-success"}">${risk}</span></td>
+              </tr>
+            `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderHrReviewTable(records) {
+  if (!records.length) {
+    return `<p class="loading">No HR review required records found.</p>`;
+  }
+
+  return `
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Department</th>
+            <th>Continuity</th>
+            <th>Absent</th>
+            <th>Late</th>
+            <th>Reason</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${records.map((record) => `
+            <tr>
+              <td>
+                <strong>${record.fullName}</strong><br />
+                <span class="loading">${record.employeeCode || ""}</span>
+              </td>
+              <td>${record.departmentName || "-"}</td>
+              <td><strong>${record.continuityScore}</strong></td>
+              <td>${record.absentDays}</td>
+              <td>${record.lateDays}</td>
+              <td><span class="badge badge-danger">${record.recommendation}</span></td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
 
 function renderReportRecordTable(records, emptyMessage) {
   if (!records.length) {

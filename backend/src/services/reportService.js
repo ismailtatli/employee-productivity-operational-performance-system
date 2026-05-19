@@ -18,23 +18,33 @@ function roundToTwoDecimals(value) {
 }
 
 function enrichReportRecord(record) {
-  const qualityScore = calculateQualityScore(record);
-  const continuityScore = calculateContinuityScore(record);
+  const qualityScore = calculateQualityScore(
+    Number(record.actualQuantity),
+    Number(record.defectiveQuantity)
+  );
+
+  const continuityScore = calculateContinuityScore(
+    Number(record.plannedWorkDays),
+    Number(record.absentDays),
+    Number(record.lateDays)
+  );
+
   const overallPerformanceScore = calculateOverallPerformanceScore(record);
   const performanceGrade = calculatePerformanceGrade(overallPerformanceScore);
 
   const analysis = {
+    overallPerformanceScore,
     qualityScore,
     continuityScore,
-    overallPerformanceScore,
-    performanceGrade
+    onTimeCompletionScore: Number(record.onTimeCompletionScore)
   };
 
   const bonusEligible = determineBonusEligibility(analysis);
   const recommendation = determineRecommendation(analysis);
+
   const reportSummary = generateEmployeeReportSummary(
-    record.fullName || "Unknown Employee",
-    record.departmentName || "Unknown Department",
+    record.fullName || record.employeeName || "The employee",
+    record.departmentName || "the assigned department",
     {
       ...analysis,
       bonusEligible,
@@ -89,17 +99,9 @@ async function getSummaryReport(ownerUserId) {
   const employeeSummary = await reportRepository.getEmployeeSummary(ownerUserId);
   const productionSummary = await reportRepository.getProductionSummary(ownerUserId);
   const rawRecords = await reportRepository.getAllProductionRecordsForReports(ownerUserId);
+
   const records = rawRecords.map(enrichReportRecord);
-
   const averages = calculateAverages(records);
-
-  const bonusEligibleCount = records.filter((record) => record.bonusEligible).length;
-  const promotionCandidateCount = records.filter(
-    (record) => record.recommendation === "Promotion Candidate"
-  ).length;
-  const hrReviewRequiredCount = records.filter(
-    (record) => record.recommendation === "HR Review Required"
-  ).length;
 
   return {
     data: {
@@ -115,9 +117,13 @@ async function getSummaryReport(ownerUserId) {
       averagePerformanceScore: averages.averagePerformanceScore,
       averageQualityScore: averages.averageQualityScore,
       averageContinuityScore: averages.averageContinuityScore,
-      bonusEligibleCount,
-      promotionCandidateCount,
-      hrReviewRequiredCount
+      bonusEligibleCount: records.filter((record) => record.bonusEligible).length,
+      promotionCandidateCount: records.filter(
+        (record) => record.recommendation === "Promotion Candidate"
+      ).length,
+      hrReviewRequiredCount: records.filter(
+        (record) => record.recommendation === "HR Review Required"
+      ).length
     }
   };
 }
@@ -125,65 +131,55 @@ async function getSummaryReport(ownerUserId) {
 async function getTopPerformers(ownerUserId) {
   const rawRecords = await reportRepository.getAllProductionRecordsForReports(ownerUserId);
 
-  const records = rawRecords
-    .map(enrichReportRecord)
-    .sort((a, b) => b.overallPerformanceScore - a.overallPerformanceScore)
-    .slice(0, 10);
-
   return {
-    data: records
+    data: rawRecords
+      .map(enrichReportRecord)
+      .sort((a, b) => b.overallPerformanceScore - a.overallPerformanceScore)
+      .slice(0, 10)
   };
 }
 
 async function getBonusEligibleEmployees(ownerUserId) {
   const rawRecords = await reportRepository.getAllProductionRecordsForReports(ownerUserId);
 
-  const records = rawRecords
-    .map(enrichReportRecord)
-    .filter((record) => record.bonusEligible)
-    .sort((a, b) => b.overallPerformanceScore - a.overallPerformanceScore);
-
   return {
-    data: records
+    data: rawRecords
+      .map(enrichReportRecord)
+      .filter((record) => record.bonusEligible)
+      .sort((a, b) => b.overallPerformanceScore - a.overallPerformanceScore)
   };
 }
 
 async function getPromotionCandidates(ownerUserId) {
   const rawRecords = await reportRepository.getAllProductionRecordsForReports(ownerUserId);
 
-  const records = rawRecords
-    .map(enrichReportRecord)
-    .filter((record) => record.recommendation === "Promotion Candidate")
-    .sort((a, b) => b.overallPerformanceScore - a.overallPerformanceScore);
-
   return {
-    data: records
+    data: rawRecords
+      .map(enrichReportRecord)
+      .filter((record) => record.recommendation === "Promotion Candidate")
+      .sort((a, b) => b.overallPerformanceScore - a.overallPerformanceScore)
   };
 }
 
 async function getLowContinuityEmployees(ownerUserId) {
   const rawRecords = await reportRepository.getAllProductionRecordsForReports(ownerUserId);
 
-  const records = rawRecords
-    .map(enrichReportRecord)
-    .filter((record) => Number(record.continuityScore) < 75)
-    .sort((a, b) => a.continuityScore - b.continuityScore);
-
   return {
-    data: records
+    data: rawRecords
+      .map(enrichReportRecord)
+      .filter((record) => Number(record.continuityScore) < 75)
+      .sort((a, b) => a.continuityScore - b.continuityScore)
   };
 }
 
 async function getHrReviewRequired(ownerUserId) {
   const rawRecords = await reportRepository.getAllProductionRecordsForReports(ownerUserId);
 
-  const records = rawRecords
-    .map(enrichReportRecord)
-    .filter((record) => record.recommendation === "HR Review Required")
-    .sort((a, b) => a.overallPerformanceScore - b.overallPerformanceScore);
-
   return {
-    data: records
+    data: rawRecords
+      .map(enrichReportRecord)
+      .filter((record) => record.recommendation === "HR Review Required")
+      .sort((a, b) => a.overallPerformanceScore - b.overallPerformanceScore)
   };
 }
 
