@@ -36,7 +36,18 @@ function enrichProductionRecord(record) {
 
   const bonusEligible = determineBonusEligibility(enrichedRecord);
   const recommendation = determineRecommendation(enrichedRecord);
-  const reportSummary = generateEmployeeReportSummary(enrichedRecord);
+  const reportSummary = generateEmployeeReportSummary(
+    enrichedRecord.fullName || enrichedRecord.employeeName || "The employee",
+    enrichedRecord.departmentName || "the assigned department",
+    {
+      overallPerformanceScore: enrichedRecord.overallPerformanceScore,
+      qualityScore: enrichedRecord.qualityScore,
+      continuityScore: enrichedRecord.continuityScore,
+      onTimeCompletionScore: Number(enrichedRecord.onTimeCompletionScore),
+      bonusEligible,
+      recommendation
+    }
+  );
 
   return {
     ...enrichedRecord,
