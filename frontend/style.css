@@ -743,3 +743,267 @@ tr:hover td {
 .login-error {
   border-radius: 14px;
 }
+
+/* ROLE-BASED DASHBOARD ENHANCEMENTS */
+
+.empty-state-panel {
+  border: 1px solid #dbeafe;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+}
+
+.empty-state-text {
+  color: #64748b;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.onboarding-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.onboarding-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.onboarding-step strong {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  font-size: 13px;
+}
+
+.onboarding-step span {
+  color: #334155;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.mini-chart {
+  display: grid;
+  gap: 13px;
+}
+
+.mini-chart h4 {
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 52px;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-row span {
+  color: #475569;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.bar-row strong {
+  color: #0f172a;
+  font-size: 13px;
+  text-align: right;
+}
+
+.bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #14b8a6);
+}
+
+.role-info-panel {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.role-scope-list {
+  display: grid;
+  gap: 10px;
+}
+
+.role-scope-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.role-scope-item:last-child {
+  border-bottom: none;
+}
+
+.role-scope-item span {
+  color: #16a34a;
+  font-weight: 900;
+}
+
+.role-scope-item p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.5;
+  font-weight: 650;
+}
+
+@media (max-width: 780px) {
+  .bar-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .bar-row strong {
+    text-align: left;
+  }
+}
+
+/* ROLE-BASED DASHBOARD ENHANCEMENTS */
+
+.empty-state-panel {
+  border: 1px solid #dbeafe;
+  background: linear-gradient(135deg, #eff6ff, #ffffff);
+}
+
+.empty-state-text {
+  color: #64748b;
+  line-height: 1.7;
+  margin-bottom: 16px;
+}
+
+.onboarding-steps {
+  display: grid;
+  gap: 12px;
+}
+
+.onboarding-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 13px 14px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+}
+
+.onboarding-step strong {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  font-size: 13px;
+}
+
+.onboarding-step span {
+  color: #334155;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.mini-chart {
+  display: grid;
+  gap: 13px;
+}
+
+.mini-chart h4 {
+  margin: 0 0 4px;
+  color: #0f172a;
+}
+
+.bar-row {
+  display: grid;
+  grid-template-columns: 130px 1fr 52px;
+  align-items: center;
+  gap: 12px;
+}
+
+.bar-row span {
+  color: #475569;
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.bar-row strong {
+  color: #0f172a;
+  font-size: 13px;
+  text-align: right;
+}
+
+.bar-track {
+  height: 10px;
+  border-radius: 999px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2563eb, #14b8a6);
+}
+
+.role-info-panel {
+  background: linear-gradient(135deg, #ffffff, #f8fafc);
+}
+
+.role-scope-list {
+  display: grid;
+  gap: 10px;
+}
+
+.role-scope-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.role-scope-item:last-child {
+  border-bottom: none;
+}
+
+.role-scope-item span {
+  color: #16a34a;
+  font-weight: 900;
+}
+
+.role-scope-item p {
+  margin: 0;
+  color: #334155;
+  line-height: 1.5;
+  font-weight: 650;
+}
+
+@media (max-width: 780px) {
+  .bar-row {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .bar-row strong {
+    text-align: left;
+  }
+}
