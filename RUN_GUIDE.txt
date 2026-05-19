@@ -1,0 +1,104 @@
+RUN GUIDE
+
+Project:
+Employee Productivity and Operational Performance Management System
+
+Scenario:
+TatLee Factory role-based productivity and operational performance management system.
+
+1. Start Backend
+
+cd backend
+npm install
+npm run dev
+
+Backend URL:
+http://localhost:5001
+
+API Base URL:
+http://localhost:5001/api
+
+2. Start Frontend
+
+Open a new terminal:
+
+cd frontend
+python3 -m http.server 5501
+
+Frontend URL:
+http://localhost:5501
+
+3. Demo Users
+
+All users use the same password:
+TatLee123
+
+System Admin:
+admin@tatleefactory.com
+
+Factory Manager:
+manager@tatleefactory.com
+
+Production Supervisor:
+production@tatleefactory.com
+
+Quality Control Specialist:
+quality@tatleefactory.com
+
+HR Specialist:
+hr@tatleefactory.com
+
+Department Viewer:
+viewer@tatleefactory.com
+
+4. Suggested Demo Flow
+
+Step 1:
+Login as System Admin.
+Show all modules:
+Dashboard, Employees, Departments, Products, Machines, Production Records, Reports.
+
+Step 2:
+Open Reports.
+Show Employee Report Center.
+Open a personal employee report.
+Explain score, bonus status, promotion status, quality score, continuity score and system recommendation.
+
+Step 3:
+Logout and login as Factory Manager.
+Show that Factory Manager can access Reports and management-level dashboard.
+
+Step 4:
+Logout and login as Production Supervisor.
+Show that only production-related modules are visible:
+Dashboard, Employees, Products, Machines, Production Records.
+Explain that Reports and Departments are hidden.
+
+Step 5:
+Open Production Records.
+Show that production data can be entered using employee, product and machine information.
+
+Step 6:
+Logout and login as HR Specialist.
+Show that HR can access Employees and Departments, but cannot access Products, Machines, Production Records or Reports.
+
+Step 7:
+Logout and login as Department Viewer.
+Show that Viewer only sees the Dashboard and cannot edit anything.
+
+5. Test Command
+
+cd backend
+npm test
+
+Current test status:
+8 test suites passed.
+51 tests passed.
+
+6. Important Notes
+
+- Backend must run before frontend.
+- Frontend uses http://localhost:5001/api as API base URL.
+- Use hard refresh if browser cache keeps old frontend files.
+- Reports are only visible for System Admin and Factory Manager.
+- The system demonstrates authentication, role-based access control, CRUD modules, production records, smart scoring and automated reports.
